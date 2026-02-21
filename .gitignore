@@ -1,0 +1,40 @@
+# Flutter/Dart related
+.dart_tool/
+.packages
+build/
+*.log
+*.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/package_config.json
+
+# IDE specific
+.idea/
+.vscode/
+*.iml
+*.iws
+*.swp
+.DS_Store
+
+# Android related
+android/app/debug
+android/app/profile
+android/app/release
+android/.gradle/
+android/local.properties
+
+# iOS related
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_assets/
+ios/Pods/
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS related
+macos/Flutter/GeneratedPluginRegistrant.*
+macos/Flutter/ephemeral/
+
+# Web related
+web/index.html
