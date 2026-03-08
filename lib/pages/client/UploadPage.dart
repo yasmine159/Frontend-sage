@@ -1,143 +1,140 @@
+import 'package:flutter/foundation.dart'; // kIsWeb
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import '../../services/api_service.dart';
 
 class UploadPage extends StatefulWidget {
   @override
   _UploadPageState createState() => _UploadPageState();
 }
 
-class _UploadPageState extends State<UploadPage> with SingleTickerProviderStateMixin {
-  File? selectedFile;
-  bool isUploading = false;
-  double uploadProgress = 0.0;
-  String? uploadStatus;
-  late AnimationController _animationController;
+class _UploadPageState extends State<UploadPage> {
+  final ApiService _api = ApiService();
 
-  // Recent uploads (mock data)
-  final List<Map<String, dynamic>> recentUploads = [
-    {
-      'name': 'inventory_data_jan.xlsx',
-      'date': '2 hours ago',
-      'status': 'Success',
-      'size': '2.4 MB',
-      'icon': Icons.check_circle,
-      'color': Color(0xFF10b981),
-    },
-    {
-      'name': 'production_report.xlsx',
-      'date': 'Yesterday',
-      'status': 'Success',
-      'size': '1.8 MB',
-      'icon': Icons.check_circle,
-      'color': Color(0xFF10b981),
-    },
-    {
-      'name': 'quality_metrics.xlsx',
-      'date': '2 days ago',
-      'status': 'Failed',
-      'size': '3.1 MB',
-      'icon': Icons.error,
-      'color': Color(0xFFef4444),
-    },
-  ];
+  // On web: we store bytes + name. On mobile: we store the path.
+  PlatformFile? _selectedPlatformFile;
+
+  bool    _isUploading  = false;
+  double  _progress     = 0.0;
+
+  // Result from backend
+  bool?         _success;
+  String?       _modelCode;
+  int?          _rowCount;
+  String?       _csvContent;
+  List<dynamic> _errors = [];
+
+  // History
+  List<Map<String, dynamic>> _history        = [];
+  bool                       _historyLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 1500),
-    )..repeat();
+    _loadHistory();
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  Future<void> _loadHistory() async {
+    setState(() => _historyLoading = true);
+    try {
+      final history = await _api.getHistory(userId: ApiService.userId);
+      setState(() {
+        _history        = history;
+        _historyLoading = false;
+      });
+    } catch (_) {
+      setState(() => _historyLoading = false);
+    }
   }
 
   Future<void> _selectFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls'],
+      type:              FileType.custom,
+      allowedExtensions: ['xlsx'],
+      withData:          kIsWeb, // on web we need bytes directly
     );
-
     if (result != null) {
       setState(() {
-        selectedFile = File(result.files.single.path!);
-        uploadStatus = null;
+        _selectedPlatformFile = result.files.single;
+        _success  = null;
+        _errors   = [];
+        _progress = 0.0;
       });
     }
   }
 
   Future<void> _uploadFile() async {
-    if (selectedFile == null) return;
+    if (_selectedPlatformFile == null) return;
 
     setState(() {
-      isUploading = true;
-      uploadProgress = 0.0;
-      uploadStatus = null;
+      _isUploading = true;
+      _progress    = 0.0;
+      _success     = null;
+      _errors      = [];
     });
 
-    // Simulate upload with progress
-    for (int i = 0; i <= 100; i += 10) {
-      await Future.delayed(Duration(milliseconds: 200));
+    try {
+      final fileName = _selectedPlatformFile!.name;
+      Map<String, dynamic> result;
+
+      if (kIsWeb) {
+        // Web: use bytes
+        final bytes = _selectedPlatformFile!.bytes!;
+        result = await _api.uploadFile(
+          bytes,
+          fileName,
+          onProgress: (p) => setState(() => _progress = p),
+        );
+      } else {
+        // Mobile: use file path
+
+        final path = _selectedPlatformFile!.path!;
+        result = await _api.uploadFile(
+          _MobileFile(path),
+          fileName,
+          onProgress: (p) => setState(() => _progress = p),
+        );
+      }
+
       setState(() {
-        uploadProgress = i / 100;
+        _isUploading = false;
+        _success     = result['success'] ?? false;
+        _modelCode   = result['modelCode'];
+        _rowCount    = result['rowCount'];
+        _csvContent  = result['csvContent'];
+        _errors      = result['errors'] ?? [];
+      });
+
+      _loadHistory();
+
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+        _success     = false;
+        _errors      = [{'row': 0, 'field': '', 'message': e.toString()}];
       });
     }
+  }
 
-    // Simulate processing
-    await Future.delayed(Duration(seconds: 1));
-
+  void _resetForm() {
     setState(() {
-      isUploading = false;
-      uploadStatus = 'success';
-    });
-
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text('File uploaded successfully!'),
-            ),
-          ],
-        ),
-        backgroundColor: Color(0xFF10b981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: EdgeInsets.all(16),
-      ),
-    );
-
-    // Reset after delay
-    Future.delayed(Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          selectedFile = null;
-          uploadStatus = null;
-          uploadProgress = 0.0;
-        });
-      }
+      _selectedPlatformFile = null;
+      _success    = null;
+      _errors     = [];
+      _progress   = 0.0;
+      _modelCode  = null;
+      _rowCount   = null;
+      _csvContent = null;
     });
   }
 
-  void _removeFile() {
-    setState(() {
-      selectedFile = null;
-      uploadStatus = null;
-      uploadProgress = 0.0;
-    });
-  }
+  String get _fileName => _selectedPlatformFile?.name ?? '';
+  double get _fileSizeMb =>
+      (_selectedPlatformFile?.size ?? 0) / (1024 * 1024);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
@@ -145,7 +142,7 @@ class _UploadPageState extends State<UploadPage> with SingleTickerProviderStateM
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            end:   Alignment.bottomRight,
             colors: [
               theme.scaffoldBackgroundColor,
               theme.brightness == Brightness.light
@@ -157,26 +154,32 @@ class _UploadPageState extends State<UploadPage> with SingleTickerProviderStateM
         child: SafeArea(
           child: Column(
             children: [
-              _buildCustomAppBar(context),
+              _buildAppBar(context),
               Expanded(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoBanner(),
-                      SizedBox(height: 24),
-                      _buildUploadArea(),
-                      if (selectedFile != null) ...[
-                        SizedBox(height: 24),
-                        _buildFilePreview(),
+                      _buildUploadArea(colorScheme, theme),
+                      if (_selectedPlatformFile != null && _success == null) ...[
+                        SizedBox(height: 20),
+                        _buildFilePreview(colorScheme, theme),
                       ],
-                      if (isUploading) ...[
-                        SizedBox(height: 24),
-                        _buildProgressIndicator(),
+                      if (_isUploading) ...[
+                        SizedBox(height: 20),
+                        _buildProgressBar(colorScheme),
+                      ],
+                      if (_success == true) ...[
+                        SizedBox(height: 20),
+                        _buildSuccessResult(colorScheme),
+                      ],
+                      if (_success == false && _errors.isNotEmpty) ...[
+                        SizedBox(height: 20),
+                        _buildErrorResult(colorScheme),
                       ],
                       SizedBox(height: 32),
-                      _buildRecentUploads(),
+                      _buildHistory(colorScheme, theme),
                     ],
                   ),
                 ),
@@ -188,582 +191,444 @@ class _UploadPageState extends State<UploadPage> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildCustomAppBar(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget _buildAppBar(BuildContext context) {
+    final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: theme.brightness == Brightness.light
-                ? Colors.black12
-                : Colors.black54,
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(
+          color:      theme.brightness == Brightness.light
+              ? Colors.black12 : Colors.black54,
+          blurRadius: 10, offset: Offset(0, 2),
+        )],
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-            onPressed: () => Navigator.pop(context),
-          ),
-          SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Upload File',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Text(
-                'Import your Excel data',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-          Spacer(),
-          IconButton(
-            icon: Icon(Icons.help_outline, color: colorScheme.primary),
-            onPressed: () => _showHelpDialog(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoBanner() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.primary.withOpacity(0.3),
-          width: 1,
+      child: Row(children: [
+        IconButton(
+          icon:      Icon(Icons.arrow_back, color: colorScheme.onSurface),
+          onPressed: () => Navigator.pop(context),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: colorScheme.primary),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Accepted File Formats',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Excel files (.xlsx, .xls) up to 10MB',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Upload File',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface)),
+          Text('Import your Excel data',
+              style: TextStyle(fontSize: 12,
+                  color: colorScheme.onSurface.withOpacity(0.6))),
+        ]),
+      ]),
     );
   }
 
-  Widget _buildUploadArea() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+  Widget _buildUploadArea(ColorScheme colorScheme, ThemeData theme) {
     return GestureDetector(
-      onTap: isUploading ? null : _selectFile,
+      onTap: _isUploading ? null : _selectFile,
       child: Container(
         padding: EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: colorScheme.surface,
+          color:        colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selectedFile != null
-                ? colorScheme.primary
-                : theme.dividerColor,
+            color: _selectedPlatformFile != null
+                ? colorScheme.primary : theme.dividerColor,
             width: 2,
-            style: BorderStyle.solid,
           ),
-          boxShadow: [
-            BoxShadow(
+          boxShadow: [BoxShadow(
+            color:      colorScheme.primary.withOpacity(0.08),
+            blurRadius: 12, offset: Offset(0, 6),
+          )],
+        ),
+        child: Column(children: [
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
               color: colorScheme.primary.withOpacity(0.1),
-              blurRadius: 12,
-              offset: Offset(0, 6),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.cloud_upload_rounded,
+                size: 56, color: colorScheme.primary),
+          ),
+          SizedBox(height: 16),
+          Text(
+            _selectedPlatformFile == null
+                ? 'Tap to select Excel file' : 'Tap to change file',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface),
+          ),
+          SizedBox(height: 6),
+          Text('.xlsx files only',
+              style: TextStyle(fontSize: 13,
+                  color: colorScheme.onSurface.withOpacity(0.5))),
+          if (_selectedPlatformFile == null) ...[
+            SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _selectFile,
+              icon:  Icon(Icons.folder_open),
+              label: Text('Browse Files'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.cloud_upload_rounded,
-                size: 64,
-                color: colorScheme.primary,
-              ),
-            ),
-            SizedBox(height: 20),
-            Text(
-              selectedFile == null
-                  ? 'Tap to select Excel file'
-                  : 'File selected',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              selectedFile == null
-                  ? 'or drag and drop your file here'
-                  : 'Tap to change file',
-              style: TextStyle(
-                fontSize: 14,
-                color: colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-            if (selectedFile == null) ...[
-              SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: isUploading ? null : _selectFile,
-                icon: Icon(Icons.folder_open),
-                label: Text('Browse Files'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+        ]),
       ),
     );
   }
 
-  Widget _buildFilePreview() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final fileName = selectedFile!.path.split('/').last;
-    final fileSize = (selectedFile!.lengthSync() / (1024 * 1024)).toStringAsFixed(2);
-
+  Widget _buildFilePreview(ColorScheme colorScheme, ThemeData theme) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color:        colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: theme.brightness == Brightness.light
-                ? Colors.black12
-                : Colors.black54,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(
+          color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Color(0xFF10b981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.insert_drive_file,
-                  color: Color(0xFF10b981),
-                  size: 32,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fileName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '$fileSize MB',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isUploading)
-                IconButton(
-                  icon: Icon(Icons.close, color: colorScheme.error),
-                  onPressed: _removeFile,
-                ),
-            ],
+      child: Column(children: [
+        Row(children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color:        Color(0xFF10b981).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.insert_drive_file,
+                color: Color(0xFF10b981), size: 32),
           ),
-          SizedBox(height: 16),
-          Row(
+          SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: isUploading ? null : _uploadFile,
-                  icon: Icon(Icons.upload_rounded),
-                  label: Text('Upload File'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: isUploading ? null : _selectFile,
-                icon: Icon(Icons.refresh),
-                label: Text('Change'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colorScheme.primary,
-                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  side: BorderSide(color: colorScheme.primary),
-                ),
-              ),
+              Text(_fileName,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              SizedBox(height: 4),
+              Text('${_fileSizeMb.toStringAsFixed(2)} MB',
+                  style: TextStyle(fontSize: 13,
+                      color: colorScheme.onSurface.withOpacity(0.5))),
             ],
+          )),
+          IconButton(
+            icon:      Icon(Icons.close, color: colorScheme.error),
+            onPressed: _resetForm,
           ),
-        ],
-      ),
+        ]),
+        SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: ElevatedButton.icon(
+            onPressed: _isUploading ? null : _uploadFile,
+            icon:  Icon(Icons.upload_rounded),
+            label: Text('Upload & Validate'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.primary,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          )),
+          SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: _isUploading ? null : _selectFile,
+            icon:  Icon(Icons.refresh),
+            label: Text('Change'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colorScheme.primary,
+              padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: colorScheme.primary),
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 
-  Widget _buildProgressIndicator() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+  Widget _buildProgressBar(ColorScheme colorScheme) {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color:        colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: theme.brightness == Brightness.light
-                ? Colors.black12
-                : Colors.black54,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
-      child: Column(
-        children: [
-          Row(
+      child: Column(children: [
+        Row(children: [
+          SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(
+                  strokeWidth: 3, color: colorScheme.primary)),
+          SizedBox(width: 16),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: colorScheme.primary,
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Uploading file...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '${(uploadProgress * 100).toInt()}% complete',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Text('Uploading & validating...',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface)),
+              Text('${(_progress * 100).toInt()}% complete',
+                  style: TextStyle(fontSize: 13,
+                      color: colorScheme.onSurface.withOpacity(0.5))),
             ],
+          )),
+        ]),
+        SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value:           _progress,
+            minHeight:       8,
+            backgroundColor: colorScheme.surface.withOpacity(0.3),
+            color:           colorScheme.primary,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildSuccessResult(ColorScheme colorScheme) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color:        Color(0xFF10b981).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: Color(0xFF10b981).withOpacity(0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.check_circle, color: Color(0xFF10b981), size: 28),
+          SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Import Successful!',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                      color: Color(0xFF10b981))),
+              Text('Model: $_modelCode  •  $_rowCount rows converted',
+                  style: TextStyle(fontSize: 13,
+                      color: colorScheme.onSurface.withOpacity(0.7))),
+            ],
+          )),
+        ]),
+        SizedBox(height: 16),
+        if (_csvContent != null) ...[
+          Text('Generated CSV preview:',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface.withOpacity(0.7))),
+          SizedBox(height: 8),
+          Container(
+            width:   double.infinity,
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color:        colorScheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Color(0xFF10b981).withOpacity(0.3)),
+            ),
+            child: Text(
+              _csvContent!.length > 400
+                  ? _csvContent!.substring(0, 400) + '\n...'
+                  : _csvContent!,
+              style: TextStyle(fontSize: 11, fontFamily: 'monospace',
+                  color: colorScheme.onSurface.withOpacity(0.8)),
+            ),
           ),
           SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: uploadProgress,
-              minHeight: 8,
-              backgroundColor: theme.brightness == Brightness.light
-                  ? Color(0xFFf1f5f9)
-                  : colorScheme.surface.withOpacity(0.5),
-              color: colorScheme.primary,
-            ),
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRecentUploads() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent Uploads',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                // TODO: Navigate to full history
-              },
-              child: Text(
-                'View All',
-                style: TextStyle(color: colorScheme.primary),
-              ),
-            ),
-          ],
+        ElevatedButton.icon(
+          onPressed: _resetForm,
+          icon:  Icon(Icons.upload_rounded),
+          label: Text('Upload Another File'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFF10b981),
+            foregroundColor: Colors.white,
+            minimumSize: Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
         ),
-        SizedBox(height: 12),
-        ...recentUploads.map((upload) => _buildUploadHistoryItem(upload)),
-      ],
+      ]),
     );
   }
 
-  Widget _buildUploadHistoryItem(Map<String, dynamic> upload) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  Widget _buildErrorResult(ColorScheme colorScheme) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color:        Color(0xFFef4444).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Color(0xFFef4444).withOpacity(0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.error_outline, color: Color(0xFFef4444), size: 28),
+          SizedBox(width: 12),
+          Expanded(child: Text(
+            '${_errors.length} Validation Error${_errors.length > 1 ? 's' : ''} Found',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                color: Color(0xFFef4444)),
+          )),
+        ]),
+        SizedBox(height: 12),
+        ..._errors.take(10).map((err) => Container(
+          margin: EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color:        colorScheme.surface,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color:        Color(0xFFef4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                err['row'] == 0 ? 'File' : 'Row ${err['row']}',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
+                    color: Color(0xFFef4444)),
+              ),
+            ),
+            SizedBox(width: 10),
+            Expanded(child: Text(
+              err['message'] ?? '',
+              style: TextStyle(fontSize: 13,
+                  color: colorScheme.onSurface.withOpacity(0.8)),
+            )),
+          ]),
+        )),
+        if (_errors.length > 10)
+          Text('... and ${_errors.length - 10} more errors',
+              style: TextStyle(fontSize: 12,
+                  color: colorScheme.onSurface.withOpacity(0.5))),
+        SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _resetForm,
+          icon:  Icon(Icons.refresh),
+          label: Text('Try Again'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFFef4444),
+            foregroundColor: Colors.white,
+            minimumSize: Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildHistory(ColorScheme colorScheme, ThemeData theme) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text('Recent Uploads',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface)),
+        TextButton.icon(
+          onPressed: _loadHistory,
+          icon:  Icon(Icons.refresh, size: 16),
+          label: Text('Refresh'),
+        ),
+      ]),
+      SizedBox(height: 12),
+      if (_historyLoading)
+        Center(child: CircularProgressIndicator(color: colorScheme.primary))
+      else if (_history.isEmpty)
+        Center(child: Text('No uploads yet',
+            style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5))))
+      else
+        ..._history.take(5).map((item) => _buildHistoryItem(item, colorScheme)),
+    ]);
+  }
+
+  Widget _buildHistoryItem(
+      Map<String, dynamic> item, ColorScheme colorScheme) {
+    final status    = item['status'] ?? 'Unknown';
+    final isSuccess = status == 'Converted';
+    final color     = isSuccess ? Color(0xFF10b981) : Color(0xFFef4444);
+    final icon      = isSuccess ? Icons.check_circle : Icons.error;
+
+    String dateStr = '';
+    try {
+      final dt   = DateTime.parse(item['uploadDate'] ?? '');
+      final diff = DateTime.now().difference(dt);
+      if (diff.inHours < 1)       dateStr = '${diff.inMinutes}m ago';
+      else if (diff.inHours < 24) dateStr = '${diff.inHours}h ago';
+      else                        dateStr = '${diff.inDays}d ago';
+    } catch (_) {}
 
     return Container(
       margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: theme.brightness == Brightness.light
-                ? Colors.black12
-                : Colors.black54,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color:        colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(
+          color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: (upload['color'] as Color).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              upload['icon'] as IconData,
-              color: upload['color'] as Color,
-              size: 24,
-            ),
+      child: Row(children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color:        color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  upload['name'],
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      upload['date'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '•',
-                      style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      upload['size'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: (upload['color'] as Color).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              upload['status'],
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: upload['color'] as Color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHelpDialog() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: colorScheme.surface,
-        title: Row(
-          children: [
-            Icon(Icons.help, color: colorScheme.primary),
-            SizedBox(width: 8),
-            Text(
-              'Upload Help',
-              style: TextStyle(color: colorScheme.onSurface),
-            ),
-          ],
+          child: Icon(icon, color: color, size: 22),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        SizedBox(width: 12),
+        Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-                'How to upload files:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                )
-            ),
-            SizedBox(height: 8),
-            _buildHelpItem('1. Select an Excel file (.xlsx or .xls)'),
-            _buildHelpItem('2. Preview the file details'),
-            _buildHelpItem('3. Click "Upload File" to import'),
-            _buildHelpItem('4. Wait for processing to complete'),
-            SizedBox(height: 12),
-            Text(
-                'File should be:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                )
-            ),
-            SizedBox(height: 8),
-            _buildHelpItem('• In Excel format'),
-            _buildHelpItem('• Less than 10MB'),
-            _buildHelpItem('• Properly formatted'),
+            Text(item['fileName'] ?? '',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            SizedBox(height: 4),
+            Row(children: [
+              Text(item['modelCode'] ?? '',
+                  style: TextStyle(fontSize: 12, color: colorScheme.primary,
+                      fontWeight: FontWeight.w500)),
+              if (dateStr.isNotEmpty) ...[
+                Text('  •  ',
+                    style: TextStyle(
+                        color: colorScheme.onSurface.withOpacity(0.3))),
+                Text(dateStr,
+                    style: TextStyle(fontSize: 12,
+                        color: colorScheme.onSurface.withOpacity(0.5))),
+              ],
+              if (isSuccess && item['rowCount'] != null) ...[
+                Text('  •  ',
+                    style: TextStyle(
+                        color: colorScheme.onSurface.withOpacity(0.3))),
+                Text('${item['rowCount']} rows',
+                    style: TextStyle(fontSize: 12,
+                        color: colorScheme.onSurface.withOpacity(0.5))),
+              ],
+            ]),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Got it',
-              style: TextStyle(color: colorScheme.primary),
-            ),
+        )),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color:        color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHelpItem(String text) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          color: colorScheme.onSurface.withOpacity(0.7),
+          child: Text(status,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
+                  color: color)),
         ),
-      ),
+      ]),
     );
   }
+}
+
+// Simple wrapper so mobile path works without importing dart:io at the top level
+class _MobileFile {
+  final String path;
+  _MobileFile(this.path);
 }
