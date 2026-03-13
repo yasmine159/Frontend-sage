@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
 import '../../services/api_service.dart';
 
 class ModelSelectionPage extends StatefulWidget {
@@ -9,15 +7,15 @@ class ModelSelectionPage extends StatefulWidget {
 }
 
 class _ModelSelectionPageState extends State<ModelSelectionPage> {
-  final ApiService          _api            = ApiService();
-  final TextEditingController _searchCtrl   = TextEditingController();
+  final ApiService _api = ApiService();
+  final TextEditingController _searchCtrl = TextEditingController();
 
-  List<Map<String, dynamic>> _models        = [];
-  List<Map<String, dynamic>> _filtered      = [];
-  bool                       _loading       = true;
-  String?                    _error;
-  String                     _searchQuery   = '';
-  Set<String>                _downloading   = {};
+  List<Map<String, dynamic>> _models   = [];
+  List<Map<String, dynamic>> _filtered = [];
+  bool    _loading     = true;
+  String? _error;
+  String  _searchQuery = '';
+  Set<String> _downloading = {};
 
   @override
   void initState() {
@@ -31,7 +29,6 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
     super.dispose();
   }
 
-  // ── Load models from API ─────────────────────────────────────────────────
   Future<void> _loadModels() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -42,62 +39,48 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         _loading  = false;
       });
     } catch (e) {
-      setState(() {
-        _error   = e.toString();
-        _loading = false;
-      });
+      setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
   void _onSearch(String query) {
     setState(() {
       _searchQuery = query;
-      _filtered    = _models.where((m) {
-        final code = (m['codeModele'] ?? '').toLowerCase();
-        final obj  = (m['objet']     ?? '').toLowerCase();
-        final q    = query.toLowerCase();
-        return code.contains(q) || obj.contains(q);
+      _filtered = _models.where((m) {
+        final code  = (m['codeModele'] ?? '').toLowerCase();
+        final texte = (m['texte']      ?? '').toLowerCase();
+        return code.contains(query.toLowerCase()) ||
+               texte.contains(query.toLowerCase());
       }).toList();
     });
   }
 
-  // ── Download template ────────────────────────────────────────────────────
-  // ── Replace _downloadTemplate method in ModelSelectionPage.dart ──────────
-// OLD signature: Future<void> _downloadTemplate(String modelCode) 
-// The only change needed is removing the "open_filex" call and 
-// calling _api.downloadTemplate which now handles web/mobile internally.
-
-  Future<void> _downloadTemplate(String modelCode) async {
+  Future<void> _downloadTemplate(String modelCode, String displayTitle) async {
     setState(() => _downloading.add(modelCode));
     try {
-      await _api.downloadTemplate(modelCode); // handles web + mobile
-
+      await _api.downloadTemplate(modelCode);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Template $modelCode downloaded!')),
-            ]),
-            backgroundColor: Color(0xFF10b981),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: EdgeInsets.all(16),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 10),
+            Expanded(child: Text('$displayTitle downloaded!')),
+          ]),
+          backgroundColor: Color(0xFF10b981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+        ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Download failed: $e'),
-            backgroundColor: Color(0xFFef4444),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: EdgeInsets.all(16),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Download failed: $e'),
+          backgroundColor: Color(0xFFef4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+        ));
       }
     } finally {
       if (mounted) setState(() => _downloading.remove(modelCode));
@@ -108,6 +91,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
   Widget build(BuildContext context) {
     final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark      = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: Container(
@@ -117,21 +101,17 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
             end:   Alignment.bottomRight,
             colors: [
               theme.scaffoldBackgroundColor,
-              theme.brightness == Brightness.light
-                  ? Color(0xFFe2e8f0)
-                  : Color(0xFF0F172A),
+              isDark ? Color(0xFF0F172A) : Color(0xFFe2e8f0),
             ],
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(context),
-              _buildSearchBar(colorScheme, theme),
-              _buildModelCount(colorScheme),
-              Expanded(child: _buildBody(colorScheme, theme)),
-            ],
-          ),
+          child: Column(children: [
+            _buildAppBar(context),
+            _buildSearchBar(colorScheme, theme, isDark),
+            _buildCountBar(colorScheme),
+            Expanded(child: _buildBody(colorScheme, theme)),
+          ]),
         ),
       ),
     );
@@ -140,7 +120,6 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
   Widget _buildAppBar(BuildContext context) {
     final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -148,8 +127,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         boxShadow: [BoxShadow(
           color:      theme.brightness == Brightness.light
               ? Colors.black12 : Colors.black54,
-          blurRadius: 10,
-          offset:     Offset(0, 2),
+          blurRadius: 10, offset: Offset(0, 2),
         )],
       ),
       child: Row(children: [
@@ -175,18 +153,16 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
     );
   }
 
-  Widget _buildSearchBar(ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildSearchBar(ColorScheme colorScheme, ThemeData theme, bool isDark) {
     return Padding(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: Container(
         decoration: BoxDecoration(
           color:        colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(
-            color:      theme.brightness == Brightness.light
-                ? Colors.black12 : Colors.black54,
-            blurRadius: 8,
-            offset:     Offset(0, 4),
+            color:      isDark ? Colors.black54 : Colors.black12,
+            blurRadius: 8, offset: Offset(0, 4),
           )],
         ),
         child: TextField(
@@ -194,37 +170,32 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
           onChanged:  _onSearch,
           style:      TextStyle(color: colorScheme.onSurface),
           decoration: InputDecoration(
-            hintText:        'Search models...',
-            hintStyle:       TextStyle(
-                color: colorScheme.onSurface.withOpacity(0.5)),
-            prefixIcon:      Icon(Icons.search, color: colorScheme.primary),
+            hintText:   'Search by name or code...',
+            hintStyle:  TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            prefixIcon: Icon(Icons.search, color: colorScheme.primary),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
-              icon: Icon(Icons.clear,
-                  color: colorScheme.onSurface.withOpacity(0.5)),
-              onPressed: () {
-                _searchCtrl.clear();
-                _onSearch('');
-              },
-            ) : null,
-            border:          InputBorder.none,
-            contentPadding:  EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+                    icon: Icon(Icons.clear,
+                        color: colorScheme.onSurface.withOpacity(0.5)),
+                    onPressed: () { _searchCtrl.clear(); _onSearch(''); },
+                  )
+                : null,
+            border:         InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildModelCount(ColorScheme colorScheme) {
+  Widget _buildCountBar(ColorScheme colorScheme) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(children: [
         Text(
-          '${_filtered.length} '
-              '${_filtered.length == 1 ? 'Template' : 'Templates'} Available',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface.withOpacity(0.7)),
+          '${_filtered.length} ${_filtered.length == 1 ? 'template' : 'templates'} available',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface.withOpacity(0.55)),
         ),
       ]),
     );
@@ -232,8 +203,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
 
   Widget _buildBody(ColorScheme colorScheme, ThemeData theme) {
     if (_loading) {
-      return Center(child: CircularProgressIndicator(
-          color: colorScheme.primary));
+      return Center(child: CircularProgressIndicator(color: colorScheme.primary));
     }
 
     if (_error != null) {
@@ -253,11 +223,10 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
           SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _loadModels,
-            icon:  Icon(Icons.refresh),
-            label: Text('Retry'),
+            icon: Icon(Icons.refresh), label: Text('Retry'),
             style: ElevatedButton.styleFrom(
-              backgroundColor:  colorScheme.primary,
-              foregroundColor:  Colors.white,
+              backgroundColor: colorScheme.primary,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -285,7 +254,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
     }
 
     return ListView.builder(
-      padding:     EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding:     EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       itemCount:   _filtered.length,
       itemBuilder: (context, index) =>
           _buildModelCard(_filtered[index], colorScheme, theme),
@@ -297,82 +266,116 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
       ColorScheme colorScheme,
       ThemeData theme) {
 
-    final code         = model['codeModele'] ?? '';
-    final objet        = model['objet']      ?? '';
+    final code          = model['codeModele'] ?? '';
+    final texte         = model['texte']      ?? '';
+    final objet         = (model['objet']     ?? '').toString().trim();
+    final displayTitle  = texte.isNotEmpty ? texte : code;
     final isDownloading = _downloading.contains(code);
-    final Color color  = colorScheme.primary;
+    final color         = colorScheme.primary;
+
+    final avatarLetter = displayTitle.isNotEmpty
+        ? displayTitle[0].toUpperCase()
+        : '?';
 
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color:        colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.6)),
         boxShadow: [BoxShadow(
-          color:      color.withOpacity(0.1),
-          blurRadius: 12,
-          offset:     Offset(0, 6),
+          color:      Colors.black.withOpacity(
+              theme.brightness == Brightness.light ? 0.04 : 0.15),
+          blurRadius: 8, offset: Offset(0, 3),
         )],
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {},
           child: Padding(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(children: [
-              // Icon
+
+              // ── Circle avatar — single primary color ─────────────────────
               Container(
-                width: 52, height: 52,
+                width: 46, height: 46,
                 decoration: BoxDecoration(
-                  color:        color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.1),
+                  border: Border.all(
+                    color: color.withOpacity(0.25),
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
-                  child: Text(code.length >= 2 ? code.substring(0, 2) : code,
-                      style: TextStyle(fontSize: 18,
-                          fontWeight: FontWeight.bold, color: color)),
+                  child: Text(avatarLetter,
+                      style: TextStyle(
+                        fontSize:   18,
+                        fontWeight: FontWeight.w700,
+                        color:      color,
+                      )),
                 ),
               ),
-              SizedBox(width: 16),
 
-              // Info
+              SizedBox(width: 14),
+
+              // ── Text ─────────────────────────────────────────────────────
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(code,
-                      style: TextStyle(fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface)),
-                  if (objet.isNotEmpty) ...[
-                    SizedBox(height: 4),
-                    Text(objet,
-                        style: TextStyle(fontSize: 13,
-                            color: colorScheme.onSurface.withOpacity(0.6))),
-                  ],
+                  Text(displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize:   15,
+                        fontWeight: FontWeight.w600,
+                        color:      colorScheme.onSurface,
+                      )),
+                  SizedBox(height: 5),
+                  Row(children: [
+                    // Code badge
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color:        color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(code,
+                          style: TextStyle(
+                            fontSize:   11,
+                            fontWeight: FontWeight.w600,
+                            color:      color.withOpacity(0.85),
+                          )),
+                    ),
+                    if (objet.isNotEmpty) ...[
+                      SizedBox(width: 6),
+                      Text(objet,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:    colorScheme.onSurface.withOpacity(0.35),
+                          )),
+                    ],
+                  ]),
                 ],
               )),
 
-              // Download button
-              Container(
-                decoration: BoxDecoration(
-                  color:        color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: isDownloading
-                    ? Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 24, height: 24,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: color),
-                  ),
-                )
-                    : IconButton(
-                  icon:      Icon(Icons.download_rounded, color: color),
-                  onPressed: () => _downloadTemplate(code),
-                  tooltip:   'Download template',
-                ),
-              ),
+              SizedBox(width: 8),
+
+              // ── Download button ───────────────────────────────────────────
+              isDownloading
+                  ? SizedBox(
+                      width: 24, height: 24,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: color),
+                    )
+                  : IconButton(
+                      icon: Icon(Icons.download_rounded, color: color, size: 22),
+                      onPressed: () => _downloadTemplate(code, displayTitle),
+                      tooltip: 'Download $displayTitle',
+                    ),
             ]),
           ),
         ),

@@ -1,7 +1,10 @@
-import 'package:flutter/foundation.dart'; // kIsWeb
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../services/api_service.dart';
+import '../../services/api_service_web.dart'
+    if (dart.library.io) '../../services/api_service_stub.dart';
 
 class UploadPage extends StatefulWidget {
   @override
@@ -11,20 +14,17 @@ class UploadPage extends StatefulWidget {
 class _UploadPageState extends State<UploadPage> {
   final ApiService _api = ApiService();
 
-  // On web: we store bytes + name. On mobile: we store the path.
   PlatformFile? _selectedPlatformFile;
 
-  bool    _isUploading  = false;
-  double  _progress     = 0.0;
+  bool   _isUploading = false;
+  double _progress    = 0.0;
 
-  // Result from backend
   bool?         _success;
   String?       _modelCode;
   int?          _rowCount;
   String?       _csvContent;
   List<dynamic> _errors = [];
 
-  // History
   List<Map<String, dynamic>> _history        = [];
   bool                       _historyLoading = false;
 
@@ -38,10 +38,7 @@ class _UploadPageState extends State<UploadPage> {
     setState(() => _historyLoading = true);
     try {
       final history = await _api.getHistory(userId: ApiService.userId);
-      setState(() {
-        _history        = history;
-        _historyLoading = false;
-      });
+      setState(() { _history = history; _historyLoading = false; });
     } catch (_) {
       setState(() => _historyLoading = false);
     }
@@ -51,21 +48,21 @@ class _UploadPageState extends State<UploadPage> {
     final result = await FilePicker.platform.pickFiles(
       type:              FileType.custom,
       allowedExtensions: ['xlsx'],
-      withData:          kIsWeb, // on web we need bytes directly
+      withData:          kIsWeb,
     );
     if (result != null) {
       setState(() {
         _selectedPlatformFile = result.files.single;
-        _success  = null;
-        _errors   = [];
-        _progress = 0.0;
+        _success    = null;
+        _errors     = [];
+        _progress   = 0.0;
+        _csvContent = null;
       });
     }
   }
 
   Future<void> _uploadFile() async {
     if (_selectedPlatformFile == null) return;
-
     setState(() {
       _isUploading = true;
       _progress    = 0.0;
@@ -78,19 +75,14 @@ class _UploadPageState extends State<UploadPage> {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
-        // Web: use bytes
-        final bytes = _selectedPlatformFile!.bytes!;
         result = await _api.uploadFile(
-          bytes,
+          _selectedPlatformFile!.bytes!,
           fileName,
           onProgress: (p) => setState(() => _progress = p),
         );
       } else {
-        // Mobile: use file path
-
-        final path = _selectedPlatformFile!.path!;
         result = await _api.uploadFile(
-          _MobileFile(path),
+          _MobileFile(_selectedPlatformFile!.path!),
           fileName,
           onProgress: (p) => setState(() => _progress = p),
         );
@@ -106,13 +98,24 @@ class _UploadPageState extends State<UploadPage> {
       });
 
       _loadHistory();
-
     } catch (e) {
       setState(() {
         _isUploading = false;
         _success     = false;
         _errors      = [{'row': 0, 'field': '', 'message': e.toString()}];
       });
+    }
+  }
+
+  // ── Download CSV ──────────────────────────────────────────────────────────
+  void _downloadCsv() {
+    if (_csvContent == null || _csvContent!.isEmpty) return;
+    final fileName = '${_modelCode ?? 'export'}_${DateTime.now().millisecondsSinceEpoch}.csv';
+    final bytes    = Uint8List.fromList(utf8.encode(_csvContent!));
+    if (kIsWeb) {
+      triggerWebDownload(bytes, fileName);
+    } else {
+      saveMobileFile(bytes, fileName);
     }
   }
 
@@ -128,10 +131,10 @@ class _UploadPageState extends State<UploadPage> {
     });
   }
 
-  String get _fileName => _selectedPlatformFile?.name ?? '';
-  double get _fileSizeMb =>
-      (_selectedPlatformFile?.size ?? 0) / (1024 * 1024);
+  String get _fileName    => _selectedPlatformFile?.name ?? '';
+  double get _fileSizeMb  => (_selectedPlatformFile?.size ?? 0) / (1024 * 1024);
 
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final theme       = Theme.of(context);
@@ -141,52 +144,41 @@ class _UploadPageState extends State<UploadPage> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end:   Alignment.bottomRight,
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: [
               theme.scaffoldBackgroundColor,
               theme.brightness == Brightness.light
-                  ? Color(0xFFe2e8f0)
-                  : Color(0xFF0F172A),
+                  ? Color(0xFFe2e8f0) : Color(0xFF0F172A),
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildUploadArea(colorScheme, theme),
-                      if (_selectedPlatformFile != null && _success == null) ...[
-                        SizedBox(height: 20),
-                        _buildFilePreview(colorScheme, theme),
-                      ],
-                      if (_isUploading) ...[
-                        SizedBox(height: 20),
-                        _buildProgressBar(colorScheme),
-                      ],
-                      if (_success == true) ...[
-                        SizedBox(height: 20),
-                        _buildSuccessResult(colorScheme),
-                      ],
-                      if (_success == false && _errors.isNotEmpty) ...[
-                        SizedBox(height: 20),
-                        _buildErrorResult(colorScheme),
-                      ],
-                      SizedBox(height: 32),
-                      _buildHistory(colorScheme, theme),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: SafeArea(child: Column(children: [
+          _buildAppBar(context),
+          Expanded(child: SingleChildScrollView(
+            padding: EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _buildUploadArea(colorScheme, theme),
+              if (_selectedPlatformFile != null && _success == null) ...[
+                SizedBox(height: 20),
+                _buildFilePreview(colorScheme, theme),
+              ],
+              if (_isUploading) ...[
+                SizedBox(height: 20),
+                _buildProgressBar(colorScheme),
+              ],
+              if (_success == true) ...[
+                SizedBox(height: 20),
+                _buildSuccessResult(colorScheme),
+              ],
+              if (_success == false && _errors.isNotEmpty) ...[
+                SizedBox(height: 20),
+                _buildErrorResult(colorScheme),
+              ],
+              SizedBox(height: 32),
+              _buildHistory(colorScheme, theme),
+            ]),
+          )),
+        ])),
       ),
     );
   }
@@ -236,7 +228,7 @@ class _UploadPageState extends State<UploadPage> {
             width: 2,
           ),
           boxShadow: [BoxShadow(
-            color:      colorScheme.primary.withOpacity(0.08),
+            color: colorScheme.primary.withOpacity(0.08),
             blurRadius: 12, offset: Offset(0, 6),
           )],
         ),
@@ -244,9 +236,7 @@ class _UploadPageState extends State<UploadPage> {
           Container(
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
+              color: colorScheme.primary.withOpacity(0.1), shape: BoxShape.circle),
             child: Icon(Icons.cloud_upload_rounded,
                 size: 56, color: colorScheme.primary),
           ),
@@ -265,8 +255,7 @@ class _UploadPageState extends State<UploadPage> {
             SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _selectFile,
-              icon:  Icon(Icons.folder_open),
-              label: Text('Browse Files'),
+              icon: Icon(Icons.folder_open), label: Text('Browse Files'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.primary,
                 foregroundColor: Colors.white,
@@ -288,7 +277,7 @@ class _UploadPageState extends State<UploadPage> {
         color:        colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(
-          color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
+            color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
       ),
       child: Column(children: [
         Row(children: [
@@ -324,8 +313,7 @@ class _UploadPageState extends State<UploadPage> {
         Row(children: [
           Expanded(child: ElevatedButton.icon(
             onPressed: _isUploading ? null : _uploadFile,
-            icon:  Icon(Icons.upload_rounded),
-            label: Text('Upload & Validate'),
+            icon: Icon(Icons.upload_rounded), label: Text('Upload & Validate'),
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
               foregroundColor: Colors.white,
@@ -337,8 +325,7 @@ class _UploadPageState extends State<UploadPage> {
           SizedBox(width: 12),
           OutlinedButton.icon(
             onPressed: _isUploading ? null : _selectFile,
-            icon:  Icon(Icons.refresh),
-            label: Text('Change'),
+            icon: Icon(Icons.refresh), label: Text('Change'),
             style: OutlinedButton.styleFrom(
               foregroundColor: colorScheme.primary,
               padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -356,26 +343,21 @@ class _UploadPageState extends State<UploadPage> {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color:        colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
+        color: colorScheme.surface, borderRadius: BorderRadius.circular(16)),
       child: Column(children: [
         Row(children: [
           SizedBox(width: 24, height: 24,
               child: CircularProgressIndicator(
                   strokeWidth: 3, color: colorScheme.primary)),
           SizedBox(width: 16),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Uploading & validating...',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface)),
-              Text('${(_progress * 100).toInt()}% complete',
-                  style: TextStyle(fontSize: 13,
-                      color: colorScheme.onSurface.withOpacity(0.5))),
-            ],
-          )),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Uploading & validating...',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface)),
+            Text('${(_progress * 100).toInt()}% complete',
+                style: TextStyle(fontSize: 13,
+                    color: colorScheme.onSurface.withOpacity(0.5))),
+          ])),
         ]),
         SizedBox(height: 12),
         ClipRRect(
@@ -391,7 +373,10 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
+  // ── Success result — with Download CSV button ─────────────────────────────
   Widget _buildSuccessResult(ColorScheme colorScheme) {
+    final hasCsv = _csvContent != null && _csvContent!.isNotEmpty;
+
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -400,30 +385,36 @@ class _UploadPageState extends State<UploadPage> {
         border:       Border.all(color: Color(0xFF10b981).withOpacity(0.4)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Header ──────────────────────────────────────────────────────────
         Row(children: [
           Icon(Icons.check_circle, color: Color(0xFF10b981), size: 28),
           SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Import Successful!',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                      color: Color(0xFF10b981))),
-              Text('Model: $_modelCode  •  $_rowCount rows converted',
-                  style: TextStyle(fontSize: 13,
-                      color: colorScheme.onSurface.withOpacity(0.7))),
-            ],
-          )),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Import Successful!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: Color(0xFF10b981))),
+            Text('Model: $_modelCode  •  $_rowCount rows converted',
+                style: TextStyle(fontSize: 13,
+                    color: colorScheme.onSurface.withOpacity(0.7))),
+          ])),
         ]),
+
         SizedBox(height: 16),
-        if (_csvContent != null) ...[
-          Text('Generated CSV preview:',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface.withOpacity(0.7))),
+
+        // ── CSV preview ──────────────────────────────────────────────────────
+        if (hasCsv) ...[
+          Row(children: [
+            Icon(Icons.article_outlined, size: 15,
+                color: colorScheme.onSurface.withOpacity(0.6)),
+            SizedBox(width: 6),
+            Text('Generated CSV preview',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface.withOpacity(0.7))),
+          ]),
           SizedBox(height: 8),
           Container(
-            width:   double.infinity,
-            padding: EdgeInsets.all(12),
+            width:      double.infinity,
+            padding:    EdgeInsets.all(12),
             decoration: BoxDecoration(
               color:        colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
@@ -437,16 +428,38 @@ class _UploadPageState extends State<UploadPage> {
                   color: colorScheme.onSurface.withOpacity(0.8)),
             ),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 16),
         ],
-        ElevatedButton.icon(
+
+        // ── Action buttons ───────────────────────────────────────────────────
+        // Download CSV button (primary action when CSV is available)
+        if (hasCsv)
+          ElevatedButton.icon(
+            onPressed: _downloadCsv,
+            icon:  Icon(Icons.download_rounded, size: 20),
+            label: Text('Download CSV File',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF10b981),
+              foregroundColor: Colors.white,
+              minimumSize: Size(double.infinity, 52),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+            ),
+          ),
+
+        SizedBox(height: hasCsv ? 10 : 0),
+
+        // Upload another file (secondary)
+        OutlinedButton.icon(
           onPressed: _resetForm,
-          icon:  Icon(Icons.upload_rounded),
+          icon:  Icon(Icons.upload_rounded, size: 18),
           label: Text('Upload Another File'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF10b981),
-            foregroundColor: Colors.white,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Color(0xFF10b981),
             minimumSize: Size(double.infinity, 48),
+            side:  BorderSide(color: Color(0xFF10b981).withOpacity(0.6)),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
           ),
@@ -461,7 +474,7 @@ class _UploadPageState extends State<UploadPage> {
       decoration: BoxDecoration(
         color:        Color(0xFFef4444).withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFef4444).withOpacity(0.3)),
+        border:       Border.all(color: Color(0xFFef4444).withOpacity(0.3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -495,11 +508,9 @@ class _UploadPageState extends State<UploadPage> {
               ),
             ),
             SizedBox(width: 10),
-            Expanded(child: Text(
-              err['message'] ?? '',
-              style: TextStyle(fontSize: 13,
-                  color: colorScheme.onSurface.withOpacity(0.8)),
-            )),
+            Expanded(child: Text(err['message'] ?? '',
+                style: TextStyle(fontSize: 13,
+                    color: colorScheme.onSurface.withOpacity(0.8)))),
           ]),
         )),
         if (_errors.length > 10)
@@ -509,8 +520,7 @@ class _UploadPageState extends State<UploadPage> {
         SizedBox(height: 12),
         ElevatedButton.icon(
           onPressed: _resetForm,
-          icon:  Icon(Icons.refresh),
-          label: Text('Try Again'),
+          icon: Icon(Icons.refresh), label: Text('Try Again'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Color(0xFFef4444),
             foregroundColor: Colors.white,
@@ -531,8 +541,7 @@ class _UploadPageState extends State<UploadPage> {
                 color: colorScheme.onSurface)),
         TextButton.icon(
           onPressed: _loadHistory,
-          icon:  Icon(Icons.refresh, size: 16),
-          label: Text('Refresh'),
+          icon: Icon(Icons.refresh, size: 16), label: Text('Refresh'),
         ),
       ]),
       SizedBox(height: 12),
@@ -546,8 +555,7 @@ class _UploadPageState extends State<UploadPage> {
     ]);
   }
 
-  Widget _buildHistoryItem(
-      Map<String, dynamic> item, ColorScheme colorScheme) {
+  Widget _buildHistoryItem(Map<String, dynamic> item, ColorScheme colorScheme) {
     final status    = item['status'] ?? 'Unknown';
     final isSuccess = status == 'Converted';
     final color     = isSuccess ? Color(0xFF10b981) : Color(0xFFef4444);
@@ -563,13 +571,13 @@ class _UploadPageState extends State<UploadPage> {
     } catch (_) {}
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin:  EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
         color:        colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(
-          color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+            color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
       ),
       child: Row(children: [
         Container(
@@ -581,37 +589,50 @@ class _UploadPageState extends State<UploadPage> {
           child: Icon(icon, color: color, size: 22),
         ),
         SizedBox(width: 12),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item['fileName'] ?? '',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            SizedBox(height: 4),
-            Row(children: [
-              Text(item['modelCode'] ?? '',
-                  style: TextStyle(fontSize: 12, color: colorScheme.primary,
-                      fontWeight: FontWeight.w500)),
-              if (dateStr.isNotEmpty) ...[
-                Text('  •  ',
-                    style: TextStyle(
-                        color: colorScheme.onSurface.withOpacity(0.3))),
-                Text(dateStr,
-                    style: TextStyle(fontSize: 12,
-                        color: colorScheme.onSurface.withOpacity(0.5))),
-              ],
-              if (isSuccess && item['rowCount'] != null) ...[
-                Text('  •  ',
-                    style: TextStyle(
-                        color: colorScheme.onSurface.withOpacity(0.3))),
-                Text('${item['rowCount']} rows',
-                    style: TextStyle(fontSize: 12,
-                        color: colorScheme.onSurface.withOpacity(0.5))),
-              ],
-            ]),
-          ],
-        )),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(item['fileName'] ?? '',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          SizedBox(height: 4),
+          Row(children: [
+            Text(item['modelCode'] ?? '',
+                style: TextStyle(fontSize: 12, color: colorScheme.primary,
+                    fontWeight: FontWeight.w500)),
+            if (dateStr.isNotEmpty) ...[
+              Text('  •  ',
+                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.3))),
+              Text(dateStr,
+                  style: TextStyle(fontSize: 12,
+                      color: colorScheme.onSurface.withOpacity(0.5))),
+            ],
+            if (isSuccess && item['rowCount'] != null) ...[
+              Text('  •  ',
+                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.3))),
+              Text('${item['rowCount']} rows',
+                  style: TextStyle(fontSize: 12,
+                      color: colorScheme.onSurface.withOpacity(0.5))),
+            ],
+          ]),
+        ])),
+        // Download CSV from history if csvContent is available
+        if (isSuccess && item['csvContent'] != null)
+          IconButton(
+            icon:    Icon(Icons.download_rounded, color: colorScheme.primary, size: 20),
+            tooltip: 'Download CSV',
+            onPressed: () {
+              final csv      = item['csvContent'] as String;
+              final model    = item['modelCode'] ?? 'export';
+              final fileName = '${model}_${item['id'] ?? ''}.csv';
+              final bytes    = Uint8List.fromList(utf8.encode(csv));
+              if (kIsWeb) {
+                triggerWebDownload(bytes, fileName);
+              } else {
+                saveMobileFile(bytes, fileName);
+              }
+            },
+          ),
+        SizedBox(width: 4),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
@@ -627,7 +648,6 @@ class _UploadPageState extends State<UploadPage> {
   }
 }
 
-// Simple wrapper so mobile path works without importing dart:io at the top level
 class _MobileFile {
   final String path;
   _MobileFile(this.path);

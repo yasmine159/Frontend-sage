@@ -1,18 +1,106 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart'; // kIsWeb
+import 'package:flutter/foundation.dart';
 
+import 'auth_service.dart';
 import 'api_service_web.dart' if (dart.library.io) 'api_service_stub.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:5160';
-  static const int    userId  = 1;
 
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl:        baseUrl,
-    connectTimeout: Duration(seconds: 30),
-    receiveTimeout: Duration(seconds: 60),
-  ));
+  static int get userId => AuthService.instance.currentUser?.id ?? 0;
+
+  Dio get _dio {
+    final token = AuthService.instance.currentUser?.token;
+    return Dio(BaseOptions(
+      baseUrl:        baseUrl,
+      connectTimeout: Duration(seconds: 30),
+      receiveTimeout: Duration(seconds: 60),
+      headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+    ));
+  }
+
+  // ── POST /api/users/login ────────────────────────────────────────────────
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      final response = await _dio.post('/api/users/login', data: {
+        'email':    email,
+        'password': password,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) throw Exception('Invalid email or password.');
+      throw Exception('Login failed: ${e.message}');
+    }
+  }
+
+  // ── POST /api/users/register ─────────────────────────────────────────────
+  Future<Map<String, dynamic>> register(
+      String username, String email, String password) async {
+    try {
+      final response = await _dio.post('/api/users/register', data: {
+        'username': username,
+        'email':    email,
+        'password': password,
+        'role':     'User',
+      });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? e.message;
+      throw Exception(msg);
+    }
+  }
+
+  // ── GET /api/users ───────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    try {
+      final response = await _dio.get('/api/users');
+      return List<Map<String, dynamic>>.from(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to load users: ${e.message}');
+    }
+  }
+
+  // ── PUT /api/users/{id} ──────────────────────────────────────────────────
+  Future<Map<String, dynamic>> updateUser(
+      int id, String username, String email, String role) async {
+    try {
+      final response = await _dio.put('/api/users/$id', data: {
+        'id':       id,
+        'username': username,
+        'email':    email,
+        'role':     role,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? e.message;
+      throw Exception(msg);
+    }
+  }
+
+  // ── DELETE /api/users/{id} ───────────────────────────────────────────────
+  Future<void> deleteUser(int id) async {
+    try {
+      await _dio.delete('/api/users/$id');
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? e.message;
+      throw Exception(msg);
+    }
+  }
+
+  // ── POST /api/users/{id}/change-password ─────────────────────────────────
+  Future<void> changePassword(
+      int uid, String oldPassword, String newPassword) async {
+    try {
+      await _dio.post('/api/users/$uid/change-password', data: {
+        'oldPassword': oldPassword,
+        'newPassword': newPassword,
+      });
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? e.message;
+      throw Exception(msg);
+    }
+  }
 
   // ── GET /api/models ──────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getModels() async {
@@ -31,10 +119,8 @@ class ApiService {
         '/api/templates/$modelCode/excel',
         options: Options(responseType: ResponseType.bytes),
       );
-
       final bytes    = Uint8List.fromList(response.data);
       final fileName = '${modelCode}_import_template.xlsx';
-
       if (kIsWeb) {
         triggerWebDownload(bytes, fileName);
       } else {
@@ -46,7 +132,6 @@ class ApiService {
   }
 
   // ── POST /api/imports/upload ─────────────────────────────────────────────
-  // [file] is Uint8List on web, or a file-path-wrapper on mobile
   Future<Map<String, dynamic>> uploadFile(
     dynamic file,
     String fileName, {
@@ -54,36 +139,24 @@ class ApiService {
   }) async {
     try {
       MultipartFile multipartFile;
-
       if (kIsWeb) {
-        // file is Uint8List
         multipartFile = MultipartFile.fromBytes(
-          file as Uint8List,
-          filename: fileName,
-        );
+          file as Uint8List, filename: fileName);
       } else {
-        // file has a .path property
         multipartFile = await MultipartFile.fromFile(
-          file.path as String,
-          filename: fileName,
-        );
+          file.path as String, filename: fileName);
       }
-
       final formData = FormData.fromMap({
         'file':   multipartFile,
         'userId': userId.toString(),
       });
-
       final response = await _dio.post(
         '/api/imports/upload',
         data: formData,
         onSendProgress: (sent, total) {
-          if (total != -1 && onProgress != null) {
-            onProgress(sent / total);
-          }
+          if (total != -1 && onProgress != null) onProgress(sent / total);
         },
       );
-
       return Map<String, dynamic>.from(response.data);
     } on DioException catch (e) {
       if (e.response?.statusCode == 422) {
@@ -96,11 +169,50 @@ class ApiService {
   // ── GET /api/imports/history ─────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getHistory({int? userId}) async {
     try {
-      final query    = userId != null ? '?userId=$userId' : '';
-      final response = await _dio.get('/api/imports/history$query');
+      final id = userId ?? ApiService.userId;
+      final response = await _dio.get('/api/imports/history?userId=$id');
       return List<Map<String, dynamic>>.from(response.data);
     } on DioException catch (e) {
       throw Exception('Failed to load history: ${e.message}');
     }
   }
+  // ── PATCH /api/users/{id}/suspend ────────────────────────────────────────
+Future<void> suspendUser(int id) async {
+  try {
+    await _dio.patch('/api/users/$id/suspend');
+  } on DioException catch (e) {
+    final msg = e.response?.data?['message'] ?? e.message;
+    throw Exception(msg);
+  }
+}
+
+// ── PATCH /api/users/{id}/activate ───────────────────────────────────────
+Future<void> activateUser(int id) async {
+  try {
+    await _dio.patch('/api/users/$id/activate');
+  } on DioException catch (e) {
+    final msg = e.response?.data?['message'] ?? e.message;
+    throw Exception(msg);
+  }
+}
+
+// ── GET /api/users/admin/stats ────────────────────────────────────────────
+Future<Map<String, dynamic>> getAdminStats() async {
+  try {
+    final response = await _dio.get('/api/users/admin/stats');
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    throw Exception('Failed to load stats: ${e.message}');
+  }
+}
+
+// ── GET /api/imports/history (all users — admin) ──────────────────────────
+Future<List<Map<String, dynamic>>> getAllHistory() async {
+  try {
+    final response = await _dio.get('/api/imports/history');
+    return List<Map<String, dynamic>>.from(response.data);
+  } on DioException catch (e) {
+    throw Exception('Failed to load activity: ${e.message}');
+  }
+}
 }
