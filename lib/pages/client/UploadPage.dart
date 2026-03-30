@@ -469,69 +469,241 @@ class _UploadPageState extends State<UploadPage> {
   }
 
   Widget _buildErrorResult(ColorScheme colorScheme) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color:        Color(0xFFef4444).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
-        border:       Border.all(color: Color(0xFFef4444).withOpacity(0.3)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.error_outline, color: Color(0xFFef4444), size: 28),
-          SizedBox(width: 12),
-          Expanded(child: Text(
-            '${_errors.length} Validation Error${_errors.length > 1 ? 's' : ''} Found',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                color: Color(0xFFef4444)),
-          )),
-        ]),
-        SizedBox(height: 12),
-        ..._errors.take(10).map((err) => Container(
-          margin: EdgeInsets.only(bottom: 8),
+  // Sépare les erreurs globales (row=0) des erreurs de ligne
+  final globalErrors = _errors
+      .where((e) => (e['row'] ?? 0) == 0)
+      .toList();
+  final lineErrors = _errors
+      .where((e) => (e['row'] ?? 0) != 0)
+      .toList();
+
+  // Groupe les erreurs par numéro de ligne
+  final Map<int, List<Map<String, dynamic>>> errorsByRow = {};
+  for (final err in lineErrors) {
+    final row = err['row'] as int;
+    errorsByRow.putIfAbsent(row, () => []).add(err);
+  }
+
+  return Container(
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color:        Color(0xFFef4444).withOpacity(0.06),
+      borderRadius: BorderRadius.circular(16),
+      border:       Border.all(color: Color(0xFFef4444).withOpacity(0.35)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+      // ── En-tête ─────────────────────────────────────────────────────────
+      Row(children: [
+        Container(
           padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color:        colorScheme.surface,
-            borderRadius: BorderRadius.circular(10),
+            color: Color(0xFFef4444).withOpacity(0.12),
+            shape: BoxShape.circle,
           ),
-          child: Row(children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color:        Color(0xFFef4444).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                err['row'] == 0 ? 'File' : 'Row ${err['row']}',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
-                    color: Color(0xFFef4444)),
-              ),
+          child: Icon(Icons.error_outline, color: Color(0xFFef4444), size: 24),
+        ),
+        SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            _errors.length == 1
+                ? '1 erreur détectée'
+                : '${_errors.length} erreurs détectées',
+            style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold,
+              color: Color(0xFFef4444),
             ),
-            SizedBox(width: 10),
-            Expanded(child: Text(err['message'] ?? '',
-                style: TextStyle(fontSize: 13,
-                    color: colorScheme.onSurface.withOpacity(0.8)))),
-          ]),
-        )),
-        if (_errors.length > 10)
-          Text('... and ${_errors.length - 10} more errors',
-              style: TextStyle(fontSize: 12,
-                  color: colorScheme.onSurface.withOpacity(0.5))),
-        SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: _resetForm,
-          icon: Icon(Icons.refresh), label: Text('Try Again'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFFef4444),
-            foregroundColor: Colors.white,
-            minimumSize: Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+          ),
+          Text(
+            'Corrigez les erreurs dans votre fichier Excel puis réessayez.',
+            style: TextStyle(fontSize: 12, color: Colors.red.shade300),
+          ),
+        ])),
+      ]),
+
+      // ── Erreurs globales (fichier entier) ────────────────────────────────
+      if (globalErrors.isNotEmpty) ...[
+        SizedBox(height: 16),
+        Container(
+          padding: EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color:        Color(0xFFef4444).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border:       Border.all(color: Color(0xFFef4444).withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: globalErrors.map((err) => Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Color(0xFFef4444), size: 16),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                  err['message'] ?? '',
+                  style: TextStyle(
+                    fontSize: 13, color: Colors.red.shade800,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )),
+              ]),
+            )).toList(),
           ),
         ),
-      ]),
-    );
-  }
+      ],
+
+      // ── Erreurs par ligne ─────────────────────────────────────────────────
+      if (errorsByRow.isNotEmpty) ...[
+        SizedBox(height: 16),
+        Text(
+          'Détail par ligne :',
+          style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700,
+            color: Color(0xFF0f172a),
+          ),
+        ),
+        SizedBox(height: 8),
+
+        // Affiche max 8 lignes en erreur
+        ...errorsByRow.entries.take(8).map((entry) {
+          final rowNum  = entry.key;
+          final rowErrs = entry.value;
+
+          return Container(
+            margin: EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color:        Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Color(0xFFef4444).withOpacity(0.2)),
+              boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 6, offset: Offset(0, 2),
+              )],
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // ── Badge ligne ────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Color(0xFFef4444).withOpacity(0.08),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.table_rows_outlined,
+                      size: 14, color: Color(0xFFef4444)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Ligne $rowNum',
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.bold,
+                      color: Color(0xFFef4444),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '${rowErrs.length} erreur${rowErrs.length > 1 ? 's' : ''}',
+                    style: TextStyle(
+                      fontSize: 11, color: Color(0xFFef4444).withOpacity(0.7),
+                    ),
+                  ),
+                ]),
+              ),
+
+              // ── Liste des erreurs de cette ligne ───────────────────────
+              ...rowErrs.map((err) {
+                final field = err['field']?.toString() ?? '';
+                final msg   = err['message']?.toString() ?? '';
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Icône champ
+                      Container(
+                        margin: EdgeInsets.only(top: 2),
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color:        Color(0xFFef4444).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(Icons.edit_note,
+                            size: 12, color: Color(0xFFef4444)),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (field.isNotEmpty)
+                            Text(
+                              field,
+                              style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748b),
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          SizedBox(height: 2),
+                          Text(
+                            msg,
+                            style: TextStyle(
+                              fontSize: 13, color: Color(0xFF0f172a),
+                            ),
+                          ),
+                        ],
+                      )),
+                    ],
+                  ),
+                );
+              }),
+
+              // Séparateur entre erreurs si plusieurs
+              if (rowErrs.length > 1)
+                Divider(height: 1, color: Color(0xFFef4444).withOpacity(0.1)),
+            ]),
+          );
+        }),
+
+        // Message si trop d'erreurs
+        if (errorsByRow.length > 8)
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color:        Color(0xFFf59e0b).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Color(0xFFf59e0b).withOpacity(0.3)),
+            ),
+            child: Row(children: [
+              Icon(Icons.info_outline, color: Color(0xFFf59e0b), size: 16),
+              SizedBox(width: 8),
+              Expanded(child: Text(
+                '... et ${errorsByRow.length - 8} autres lignes en erreur. '
+                'Corrigez les erreurs affichées en premier.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF92400e)),
+              )),
+            ]),
+          ),
+      ],
+
+      SizedBox(height: 16),
+
+      // ── Bouton réessayer ─────────────────────────────────────────────────
+      ElevatedButton.icon(
+        onPressed: _resetForm,
+        icon:  Icon(Icons.refresh_rounded, size: 18),
+        label: Text('Corriger et réessayer',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color(0xFFef4444),
+          foregroundColor: Colors.white,
+          minimumSize: Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+        ),
+      ),
+    ]),
+  );
+}
 
   Widget _buildHistory(ColorScheme colorScheme, ThemeData theme) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
