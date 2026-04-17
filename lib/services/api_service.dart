@@ -213,4 +213,175 @@ class ApiService {
       throw Exception('Download failed: ${e.message}');
     }
   }
+  // ── GET /api/imports/stats ─────────────────────────────────────────────
+Future<Map<String, dynamic>> getUserStats({int? userId}) async {
+  try {
+    final id = userId ?? ApiService.userId;
+    final response = await _dio.get('/api/imports/stats?userId=$id');
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    throw Exception('Failed to load stats: ${e.message}');
+  }
 }
+Future<Map<String, dynamic>> getAnalytics({int? userId, String period = '30d'}) async {
+  try {
+    final params = <String, dynamic>{'period': period};
+    if (userId != null) params['userId'] = userId;
+    final response = await _dio.get('/api/analytics', queryParameters: params);
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    throw Exception('Failed to load analytics: ${e.message}');
+  }
+}
+// ═══════════════════════════════════════════════════════════════════════
+  //  MAPPING ENDPOINTS — Add these methods to your ApiService class
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── POST /api/mappings/read-headers ───────────────────────────────────
+  Future<List<String>> readExcelHeaders(dynamic file, String fileName) async {
+    try {
+      final multipartFile = kIsWeb
+          ? MultipartFile.fromBytes(file as Uint8List, filename: fileName)
+          : await MultipartFile.fromFile(file.path as String, filename: fileName);
+      final formData = FormData.fromMap({'file': multipartFile});
+      final response = await _dio.post('/api/mappings/read-headers', data: formData);
+      return List<String>.from(response.data['headers']);
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? 'Failed to read headers');
+    }
+  }
+
+  // ── GET /api/mappings/fields/{modelCode} ──────────────────────────────
+  Future<List<Map<String, dynamic>>> getModelFields(String modelCode) async {
+    try {
+      final response = await _dio.get('/api/mappings/fields/$modelCode');
+      return (response.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to load fields: ${e.message}');
+    }
+  }
+
+  // ── POST /api/mappings/save ───────────────────────────────────────────
+  Future<Map<String, dynamic>> saveMapping(int userId, String name, String modelCode, String columnMappings) async {
+    try {
+      final response = await _dio.post('/api/mappings/save', data: {
+        'userId': userId, 'mappingName': name,
+        'modelCode': modelCode, 'columnMappings': columnMappings,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? 'Failed to save mapping');
+    }
+  }
+
+  // ── GET /api/mappings?userId=X ────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getSavedMappings({int? userId}) async {
+    try {
+      final id = userId ?? ApiService.userId;
+      final response = await _dio.get('/api/mappings?userId=$id');
+      return (response.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to load mappings: ${e.message}');
+    }
+  }
+
+  // ── DELETE /api/mappings/{id} ─────────────────────────────────────────
+  Future<void> deleteMapping(int mappingId) async {
+    try {
+      await _dio.delete('/api/mappings/$mappingId');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? 'Failed to delete mapping');
+    }
+  }
+
+  // ── POST /api/mappings/upload ─────────────────────────────────────────
+  Future<Map<String, dynamic>> uploadWithMapping({
+
+    required dynamic file,
+    required String fileName,
+    required String modelCode,
+    required String columnMappings,
+    int? mappingId,
+    void Function(double)? onProgress,
+  }) async {
+    try {
+      final multipartFile = kIsWeb
+          ? MultipartFile.fromBytes(file as Uint8List, filename: fileName)
+          : await MultipartFile.fromFile(file.path as String, filename: fileName);
+
+      final formData = FormData.fromMap({
+        'file': multipartFile,
+        'userId': userId.toString(),
+        'modelCode': modelCode,
+        'columnMappings': columnMappings,
+        if (mappingId != null) 'mappingId': mappingId.toString(),
+      });
+
+      final response = await _dio.post('/api/mappings/upload', data: formData,
+          onSendProgress: (sent, total) {
+            if (total != -1 && onProgress != null) onProgress(sent / total);
+          });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422)
+        return Map<String, dynamic>.from(e.response!.data);
+      throw Exception('Upload failed: ${e.message}');
+    }
+  }
+
+    // ── POST /api/chat ──────────────────────────────────────────────────
+  Future<String> sendChatMessage(String message, {String? currentModelCode}) async {
+  
+    try {
+      final response = await _dio.post('/api/chat', data: {
+        'message': message,
+        if (currentModelCode != null) 'currentModelCode': currentModelCode,
+      });
+      return response.data['reply'] as String;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? 'Chat failed');
+    }
+  }
+  // ── POST /api/feedback ────────────────────────────────────────────────
+  Future<void> sendFeedback(String message, int userId, String username) async {
+    try {
+      await _dio.post('/api/feedback', data: {
+        'message': message,
+        'userId': userId,
+        'username': username,
+      });
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? 'Échec de l\'envoi');
+    }
+  }
+    // ── GET /api/feedback ─────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getFeedbacks() async {
+    try {
+      final response = await _dio.get('/api/feedback');
+      return List<Map<String, dynamic>>.from(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to load feedbacks: ${e.message}');
+    }
+  }
+
+  // ── PATCH /api/feedback/{id}/read ─────────────────────────────────────
+  Future<void> markFeedbackRead(int id) async {
+    try {
+      await _dio.patch('/api/feedback/$id/read');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message);
+    }
+  }
+
+  // ── DELETE /api/feedback/{id} ─────────────────────────────────────────
+  Future<void> deleteFeedback(int id) async {
+    try {
+      await _dio.delete('/api/feedback/$id');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message);
+    }
+  }
+  
+
+}
+

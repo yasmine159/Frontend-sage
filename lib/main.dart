@@ -3,6 +3,7 @@ import 'package:frontend_sage3/pages/admin/AdminDashboardPage.dart';
 import 'package:frontend_sage3/pages/auth/LoginPage.dart';
 import 'package:frontend_sage3/pages/auth/RegisterPage.dart';
 import 'package:frontend_sage3/pages/client/HomePage.dart';
+import 'package:frontend_sage3/pages/client/MappingPage.dart';
 
 void main() {
   runApp(SageX3App());
@@ -114,6 +115,7 @@ class _SageX3AppState extends State<SageX3App> {
         '/home': (context) => HomePage(),
         '/admin': (context) => AdminDashboardPage(),
         'report' :(context) => RegisterPage(),
+        '/mapping': (context) => MappingPage(),
       },
 
       initialRoute: '/',
