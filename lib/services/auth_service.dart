@@ -6,6 +6,8 @@ class AuthUser {
   final String email;
   final String role;
   final String token;
+  final String phone;
+  final String company;
 
   const AuthUser({
     required this.id,
@@ -13,6 +15,8 @@ class AuthUser {
     required this.email,
     required this.role,
     required this.token,
+    this.phone = '',
+    this.company = '',
   });
 
   bool get isAdmin => role.toLowerCase() == 'admin';

@@ -69,11 +69,13 @@ class ApiService {
   }
 
   // ── PUT /api/users/{id} ──────────────────────────────────────────────────
-  Future<Map<String, dynamic>> updateUser(
-      int id, String username, String email, String role) async {
+    Future<Map<String, dynamic>> updateUser(
+      int id, String username, String email, String role,
+      {String phone = '', String company = ''}) async {
     try {
       final response = await _dio.put('/api/users/$id', data: {
-        'id': id, 'username': username, 'email': email, 'role': role,
+        'id': id, 'username': username, 'email': email,
+        'role': role, 'phone': phone, 'company': company,
       });
       return Map<String, dynamic>.from(response.data);
     } on DioException catch (e) {

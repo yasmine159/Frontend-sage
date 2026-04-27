@@ -68,7 +68,10 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       AuthService.instance.setUser(AuthUser(
         id: userMap['id'] as int, username: userMap['username'] as String,
         email: userMap['email'] as String, role: userMap['role'] as String,
-        token: data['token'] as String));
+        token: data['token'] as String,
+        phone: userMap['phone'] as String? ?? '',
+        company: userMap['company'] as String? ?? '',
+      ));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Compte créé avec succès !'),

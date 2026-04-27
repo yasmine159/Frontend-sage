@@ -52,9 +52,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final data = await _api.login(emailController.text.trim(), passController.text);
       final userMap = data['user'] as Map<String, dynamic>;
       AuthService.instance.setUser(AuthUser(
-        id: userMap['id'] as int, username: userMap['username'] as String,
-        email: userMap['email'] as String, role: userMap['role'] as String,
-        token: data['token'] as String,
+        id:       userMap['id']       as int,
+        username: userMap['username'] as String,
+        email:    userMap['email']    as String,
+        role:     userMap['role']     as String,
+        token:    data['token']       as String,
+        phone:    userMap['phone'] as String? ?? '',
+        company:  userMap['company'] as String? ?? '',
       ));
       if (!mounted) return;
       if (AuthService.instance.currentUser!.isAdmin) {

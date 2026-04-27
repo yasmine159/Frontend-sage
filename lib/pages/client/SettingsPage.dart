@@ -216,130 +216,51 @@ class _SettingsPageState extends State<SettingsPage> {
   // ═════════════════════════════════════════════════════════════════════════
   //  EDIT PROFILE
   // ═════════════════════════════════════════════════════════════════════════
-  void _showEditProfileDialog() {
-    final colorScheme = Theme.of(context).colorScheme;
-    _nameCtrl.text = _username;
-    _emailCtrl.text = _email;
-    bool isLoading = false;
-    String? errorMsg;
-
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setDlgState) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Modifier le profil', style: TextStyle(color: colorScheme.onSurface)),
-        backgroundColor: colorScheme.surface,
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (errorMsg != null) ...[
-            Container(padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(color: colorScheme.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(errorMsg!, style: TextStyle(color: colorScheme.error, fontSize: 13))),
-            SizedBox(height: 12),
-          ],
-          TextField(controller: _nameCtrl,
-            style: TextStyle(color: colorScheme.onSurface),
-            decoration: _fieldDeco('Nom complet', colorScheme)),
-          SizedBox(height: 12),
-          TextField(controller: _emailCtrl,
-            style: TextStyle(color: colorScheme.onSurface),
-            decoration: _fieldDeco('Adresse e-mail', colorScheme)),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: Text('Annuler', style: TextStyle(color: colorScheme.onSurface))),
-          ElevatedButton(
-            onPressed: isLoading ? null : () async {
-              if (_nameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty) {
-                setDlgState(() => errorMsg = 'Tous les champs sont obligatoires');
-                return;
-              }
-              setDlgState(() => isLoading = true);
-              try {
-                                await ApiService().updateUser(
-                  _user!.id, _nameCtrl.text.trim(), _emailCtrl.text.trim(), _user!.role);
-                AuthService.instance.setUser(AuthUser(
-                  id: _user!.id, username: _nameCtrl.text.trim(),
-                  email: _emailCtrl.text.trim(), role: _user!.role, token: _user!.token));
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  setState(() {});
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Profil mis à jour !'),
-                    backgroundColor: Color(0xFF10b981), behavior: SnackBarBehavior.floating));
-                }
-              } catch (e) {
-                setDlgState(() { isLoading = false; errorMsg = e.toString().replaceFirst('Exception: ', ''); });
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: colorScheme.primary, foregroundColor: Colors.white),
-            child: isLoading
-                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text('Enregistrer'),
-          ),
-        ],
-      ),
-    ));
-  }
-
+   void _showEditProfileDialog() {
+  final nameCtrl    = TextEditingController(text: _username);
+  final phoneCtrl   = TextEditingController(text: _user?.phone    ?? '');
+  final companyCtrl = TextEditingController(text: _user?.company  ?? '');
+ 
+  showDialog(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => _EditProfileDialog(
+      nameCtrl:    nameCtrl,
+      phoneCtrl:   phoneCtrl,
+      companyCtrl: companyCtrl,
+      email:       _email,
+      initials:    _initials,
+      onSave: (name, phone, company) async {
+        await ApiService().updateUser(
+          _user!.id, name, _user!.email, _user!.role,
+          phone: phone, company: company,
+        );
+        AuthService.instance.setUser(AuthUser(
+          id:       _user!.id,
+          username: name,
+          email:    _user!.email,
+          role:     _user!.role,
+          token:    _user!.token,
+          phone:    phone,
+          company:  company,
+        ));
+        if (mounted) setState(() {});
+      },
+    ),
+  );
+}
   // ═════════════════════════════════════════════════════════════════════════
   //  CHANGE PASSWORD
   // ═════════════════════════════════════════════════════════════════════════
   void _showChangePasswordDialog() {
-    final colorScheme = Theme.of(context).colorScheme;
-    final currentCtrl = TextEditingController();
-    final newCtrl     = TextEditingController();
-    final confirmCtrl = TextEditingController();
-    bool isLoading = false;
-    String? errorMsg;
-
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setDlgState) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Changer le mot de passe', style: TextStyle(color: colorScheme.onSurface)),
-        backgroundColor: colorScheme.surface,
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (errorMsg != null) ...[
-            Container(padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(color: colorScheme.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(errorMsg!, style: TextStyle(color: colorScheme.error, fontSize: 13))),
-            SizedBox(height: 12),
-          ],
-          _obscuredField(currentCtrl, 'Mot de passe actuel', colorScheme),
-          SizedBox(height: 12),
-          _obscuredField(newCtrl, 'Nouveau mot de passe', colorScheme),
-          SizedBox(height: 12),
-          _obscuredField(confirmCtrl, 'Confirmer le mot de passe', colorScheme),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: Text('Annuler', style: TextStyle(color: colorScheme.onSurface))),
-          ElevatedButton(
-            onPressed: isLoading ? null : () async {
-              if (newCtrl.text != confirmCtrl.text) {
-                setDlgState(() => errorMsg = 'Les mots de passe ne correspondent pas'); return;
-              }
-              setDlgState(() => isLoading = true);
-              try {
-                await ApiService().changePassword(_user!.id, currentCtrl.text, newCtrl.text);
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Mot de passe mis à jour !'),
-                    backgroundColor: Color(0xFF10b981), behavior: SnackBarBehavior.floating));
-                }
-              } catch (e) {
-                setDlgState(() { isLoading = false; errorMsg = e.toString().replaceFirst('Exception: ', ''); });
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: colorScheme.primary, foregroundColor: Colors.white),
-            child: isLoading
-                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text('Mettre à jour'),
-          ),
-        ],
-      ),
-    ));
-  }
-
+  showDialog(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => _ChangePasswordDialog(
+      userId: _user!.id,
+    ),
+  );
+}
   // ═════════════════════════════════════════════════════════════════════════
   //  FEEDBACK — visual only, no API call
   // ═════════════════════════════════════════════════════════════════════════
@@ -484,5 +405,733 @@ class _SettingsPageState extends State<SettingsPage> {
       content: Text('$feature bientôt disponible !'),
       behavior: SnackBarBehavior.floating,
       backgroundColor: Theme.of(context).colorScheme.primary));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  COPIEZ ces widgets en bas de votre fichier settings_page.dart
+//  (après la classe SettingsPage, avant la dernière accolade du fichier)
+// ═══════════════════════════════════════════════════════════════════════════
+ 
+// ─── EDIT PROFILE DIALOG ────────────────────────────────────────────────────
+class _EditProfileDialog extends StatefulWidget {
+  final TextEditingController nameCtrl, phoneCtrl, companyCtrl;
+  final String email, initials;
+  final Future<void> Function(String name, String phone, String company) onSave;
+ 
+  const _EditProfileDialog({
+    required this.nameCtrl,
+    required this.phoneCtrl,
+    required this.companyCtrl,
+    required this.email,
+    required this.initials,
+    required this.onSave,
+  });
+ 
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+ 
+class _EditProfileDialogState extends State<_EditProfileDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double>   _scale, _fade;
+ 
+  bool    _loading  = false;
+  String? _errorMsg;
+ 
+  static const _blue  = Color(0xFF2563eb);
+  static const _red   = Color(0xFFdc2626);
+ 
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: Duration(milliseconds: 320));
+    _scale = CurvedAnimation(parent: _anim, curve: Curves.easeOutBack);
+    _fade  = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
+    _anim.forward();
+  }
+ 
+  @override
+  void dispose() { _anim.dispose(); super.dispose(); }
+ 
+  Future<void> _save() async {
+    final name = widget.nameCtrl.text.trim();
+    if (name.isEmpty) { setState(() => _errorMsg = 'Le nom est obligatoire'); return; }
+    setState(() { _loading = true; _errorMsg = null; });
+    try {
+      await widget.onSave(name, widget.phoneCtrl.text.trim(), widget.companyCtrl.text.trim());
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text('Profil mis à jour avec succès !'),
+          ]),
+          backgroundColor: Color(0xFF10b981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: EdgeInsets.all(16),
+        ));
+      }
+    } catch (e) {
+      setState(() { _loading = false; _errorMsg = e.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    final dk = Theme.of(context).brightness == Brightness.dark;
+    final bg = dk ? Color(0xFF151921) : Colors.white;
+    final surface = dk ? Color(0xFF1e2330) : Color(0xFFF8FAFC);
+    final border  = dk ? Color(0xFF2a3040) : Color(0xFFE2E8F0);
+    final txt     = dk ? Colors.white : Color(0xFF0F172A);
+    final sub     = dk ? Color(0xFF94A3B8) : Color(0xFF64748B);
+ 
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: Container(
+            width: 480,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(dk ? 0.5 : 0.15), blurRadius: 40, offset: Offset(0, 20)),
+              ],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+ 
+              // ── HEADER ──────────────────────────────────────────────────
+              Container(
+                padding: EdgeInsets.fromLTRB(28, 28, 28, 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: dk
+                        ? [Color(0xFF1e3a5f), Color(0xFF1a2a4a)]
+                        : [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(children: [
+                  // Avatar
+                  Container(
+                    width: 64, height: 64,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [Color(0xFF2563eb), Color(0xFF3B82F6)]),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: _blue.withOpacity(0.35), blurRadius: 16, offset: Offset(0, 6))],
+                    ),
+                    child: Center(child: Text(widget.initials,
+                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800))),
+                  ),
+                  SizedBox(width: 18),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Modifier le profil',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
+                            color: dk ? Colors.white : Color(0xFF1E3A5F), letterSpacing: -0.4)),
+                    SizedBox(height: 4),
+                    Text('Mettez à jour vos informations personnelles',
+                        style: TextStyle(fontSize: 12.5, color: sub, height: 1.4)),
+                  ])),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: dk ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.close_rounded, size: 16, color: sub),
+                    ),
+                  ),
+                ]),
+              ),
+ 
+              // ── EMAIL (lecture seule, stylisé) ────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 24, 28, 0),
+                child: _readonlyField(
+                  icon: Icons.alternate_email_rounded,
+                  label: 'Adresse e-mail',
+                  value: widget.email,
+                  note: 'Non modifiable',
+                  surface: surface, border: border, txt: txt, sub: sub, dk: dk,
+                ),
+              ),
+ 
+              // ── FIELDS ────────────────────────────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 16, 28, 0),
+                child: _buildField(
+                  ctrl: widget.nameCtrl,
+                  icon: Icons.person_outline_rounded,
+                  label: 'Nom complet',
+                  surface: surface, border: border, txt: txt, sub: sub, dk: dk,
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: _buildField(
+                  ctrl: widget.phoneCtrl,
+                  icon: Icons.phone_outlined,
+                  label: 'Numéro de téléphone',
+                  keyboard: TextInputType.phone,
+                  surface: surface, border: border, txt: txt, sub: sub, dk: dk,
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: _buildField(
+                  ctrl: widget.companyCtrl,
+                  icon: Icons.business_outlined,
+                  label: 'Société / Entreprise',
+                  surface: surface, border: border, txt: txt, sub: sub, dk: dk,
+                ),
+              ),
+ 
+              // ── ERROR ─────────────────────────────────────────────────
+              if (_errorMsg != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _red.withOpacity(0.25)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.error_outline_rounded, color: _red, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(_errorMsg!, style: TextStyle(color: _red, fontSize: 12.5))),
+                    ]),
+                  ),
+                ),
+ 
+              // ── ACTIONS ───────────────────────────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 20, 28, 28),
+                child: Row(children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _loading ? null : () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: border)),
+                        foregroundColor: sub,
+                      ),
+                      child: Text('Annuler', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shadowColor: _blue.withOpacity(0.4),
+                      ),
+                      child: _loading
+                          ? SizedBox(width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Icon(Icons.check_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                            ]),
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+ 
+  Widget _readonlyField({
+    required IconData icon, required String label,
+    required String value, required String note,
+    required Color surface, required Color border,
+    required Color txt, required Color sub, required bool dk,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Row(children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Color(0xFF2563eb).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Color(0xFF2563eb), size: 16),
+        ),
+        SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: TextStyle(fontSize: 11, color: sub, fontWeight: FontWeight.w500)),
+          SizedBox(height: 2),
+          Text(value, style: TextStyle(fontSize: 14, color: txt, fontWeight: FontWeight.w600)),
+        ])),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: dk ? Colors.white.withOpacity(0.05) : Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(note, style: TextStyle(fontSize: 10.5, color: sub, fontWeight: FontWeight.w500)),
+        ),
+      ]),
+    );
+  }
+ 
+  Widget _buildField({
+    required TextEditingController ctrl,
+    required IconData icon,
+    required String label,
+    TextInputType? keyboard,
+    required Color surface, required Color border,
+    required Color txt, required Color sub, required bool dk,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Row(children: [
+        SizedBox(width: 16),
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Color(0xFF2563eb).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Color(0xFF2563eb), size: 16),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            keyboardType: keyboard,
+            style: TextStyle(fontSize: 14, color: txt, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(fontSize: 12, color: sub, fontWeight: FontWeight.w500),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+        SizedBox(width: 16),
+      ]),
+    );
+  }
+}
+ 
+ 
+// ─── CHANGE PASSWORD DIALOG ─────────────────────────────────────────────────
+class _ChangePasswordDialog extends StatefulWidget {
+  final int userId;
+  const _ChangePasswordDialog({required this.userId});
+ 
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+ 
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double>   _scale, _fade;
+ 
+  final _currentCtrl = TextEditingController();
+  final _newCtrl     = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+ 
+  bool _showCurrent = false, _showNew = false, _showConfirm = false;
+  bool _loading = false;
+  String? _errorMsg;
+ 
+  static const _blue  = Color(0xFF2563eb);
+  static const _red   = Color(0xFFdc2626);
+  static const _green = Color(0xFF10b981);
+ 
+  // Password strength
+  int get _strength {
+    final p = _newCtrl.text;
+    if (p.isEmpty) return 0;
+    int s = 0;
+    if (p.length >= 8) s++;
+    if (p.contains(RegExp(r'[A-Z]'))) s++;
+    if (p.contains(RegExp(r'[0-9]'))) s++;
+    if (p.contains(RegExp(r'[!@#\$%^&*]'))) s++;
+    return s;
+  }
+ 
+  Color get _strengthColor {
+    switch (_strength) {
+      case 1: return Color(0xFFef4444);
+      case 2: return Color(0xFFf97316);
+      case 3: return Color(0xFFeab308);
+      case 4: return _green;
+      default: return Colors.transparent;
+    }
+  }
+ 
+  String get _strengthLabel {
+    switch (_strength) {
+      case 1: return 'Faible';
+      case 2: return 'Moyen';
+      case 3: return 'Bon';
+      case 4: return 'Fort';
+      default: return '';
+    }
+  }
+ 
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: Duration(milliseconds: 320));
+    _scale = CurvedAnimation(parent: _anim, curve: Curves.easeOutBack);
+    _fade  = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
+    _anim.forward();
+    _newCtrl.addListener(() => setState(() {}));
+  }
+ 
+  @override
+  void dispose() {
+    _anim.dispose();
+    _currentCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+ 
+  Future<void> _save() async {
+    if (_newCtrl.text != _confirmCtrl.text) {
+      setState(() => _errorMsg = 'Les mots de passe ne correspondent pas');
+      return;
+    }
+    if (_newCtrl.text.length < 6) {
+      setState(() => _errorMsg = 'Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+    setState(() { _loading = true; _errorMsg = null; });
+    try {
+      await ApiService().changePassword(widget.userId, _currentCtrl.text, _newCtrl.text);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text('Mot de passe mis à jour !'),
+          ]),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: EdgeInsets.all(16),
+        ));
+      }
+    } catch (e) {
+      setState(() { _loading = false; _errorMsg = e.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    final dk = Theme.of(context).brightness == Brightness.dark;
+    final bg = dk ? Color(0xFF151921) : Colors.white;
+    final surface = dk ? Color(0xFF1e2330) : Color(0xFFF8FAFC);
+    final border  = dk ? Color(0xFF2a3040) : Color(0xFFE2E8F0);
+    final txt     = dk ? Colors.white : Color(0xFF0F172A);
+    final sub     = dk ? Color(0xFF94A3B8) : Color(0xFF64748B);
+ 
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: Container(
+            width: 480,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(dk ? 0.5 : 0.15), blurRadius: 40, offset: Offset(0, 20)),
+              ],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+ 
+              // ── HEADER ──────────────────────────────────────────────────
+              Container(
+                padding: EdgeInsets.fromLTRB(28, 28, 28, 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: dk
+                        ? [Color(0xFF1a2a1a), Color(0xFF1a3a2a)]
+                        : [Color(0xFFF0FDF4), Color(0xFFDCFCE7)],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [Color(0xFF059669), Color(0xFF10b981)]),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: _green.withOpacity(0.35), blurRadius: 14, offset: Offset(0, 6))],
+                    ),
+                    child: Icon(Icons.lock_outline_rounded, color: Colors.white, size: 24),
+                  ),
+                  SizedBox(width: 18),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Sécurité du compte',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
+                            color: dk ? Colors.white : Color(0xFF064E3B), letterSpacing: -0.4)),
+                    SizedBox(height: 4),
+                    Text('Choisissez un mot de passe fort et unique',
+                        style: TextStyle(fontSize: 12.5, color: sub, height: 1.4)),
+                  ])),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: dk ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.close_rounded, size: 16, color: sub),
+                    ),
+                  ),
+                ]),
+              ),
+ 
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 24, 28, 0),
+                child: _pwdField(
+                  ctrl: _currentCtrl, label: 'Mot de passe actuel',
+                  icon: Icons.lock_outline_rounded,
+                  show: _showCurrent,
+                  onToggle: () => setState(() => _showCurrent = !_showCurrent),
+                  surface: surface, border: border, txt: txt, sub: sub,
+                ),
+              ),
+ 
+              // Divider with "Nouveau"
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 20, 28, 0),
+                child: Row(children: [
+                  Expanded(child: Divider(color: border)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Nouveau mot de passe',
+                        style: TextStyle(fontSize: 11, color: sub, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  ),
+                  Expanded(child: Divider(color: border)),
+                ]),
+              ),
+ 
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: _pwdField(
+                  ctrl: _newCtrl, label: 'Nouveau mot de passe',
+                  icon: Icons.lock_open_outlined,
+                  show: _showNew,
+                  onToggle: () => setState(() => _showNew = !_showNew),
+                  surface: surface, border: border, txt: txt, sub: sub,
+                ),
+              ),
+ 
+              // ── STRENGTH BAR ─────────────────────────────────────────
+              if (_newCtrl.text.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(28, 10, 28, 0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      ...List.generate(4, (i) => Expanded(
+                        child: Container(
+                          height: 4,
+                          margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                          decoration: BoxDecoration(
+                            color: i < _strength ? _strengthColor : border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      )),
+                    ]),
+                    SizedBox(height: 6),
+                    Row(children: [
+                      Text('Force : ', style: TextStyle(fontSize: 11, color: sub)),
+                      Text(_strengthLabel,
+                          style: TextStyle(fontSize: 11, color: _strengthColor, fontWeight: FontWeight.w700)),
+                      Spacer(),
+                      // Hints
+                      _hint(_newCtrl.text.length >= 8, '8+ car.', sub),
+                      SizedBox(width: 8),
+                      _hint(_newCtrl.text.contains(RegExp(r'[A-Z]')), 'A-Z', sub),
+                      SizedBox(width: 8),
+                      _hint(_newCtrl.text.contains(RegExp(r'[0-9]')), '0-9', sub),
+                    ]),
+                  ]),
+                ),
+ 
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: _pwdField(
+                  ctrl: _confirmCtrl, label: 'Confirmer le mot de passe',
+                  icon: Icons.check_circle_outline_rounded,
+                  show: _showConfirm,
+                  onToggle: () => setState(() => _showConfirm = !_showConfirm),
+                  surface: surface, border: border, txt: txt, sub: sub,
+                  accentOverride: (_confirmCtrl.text.isNotEmpty && _confirmCtrl.text == _newCtrl.text)
+                      ? _green : null,
+                ),
+              ),
+ 
+              // ── ERROR ─────────────────────────────────────────────────
+              if (_errorMsg != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _red.withOpacity(0.25)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.error_outline_rounded, color: _red, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(_errorMsg!, style: TextStyle(color: _red, fontSize: 12.5))),
+                    ]),
+                  ),
+                ),
+ 
+              // ── ACTIONS ───────────────────────────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(28, 20, 28, 28),
+                child: Row(children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _loading ? null : () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: border)),
+                        foregroundColor: sub,
+                      ),
+                      child: Text('Annuler', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: _green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _loading
+                          ? SizedBox(width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Icon(Icons.shield_outlined, size: 18),
+                              SizedBox(width: 8),
+                              Text('Mettre à jour', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                            ]),
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+ 
+  Widget _pwdField({
+    required TextEditingController ctrl,
+    required String label,
+    required IconData icon,
+    required bool show,
+    required VoidCallback onToggle,
+    required Color surface, required Color border,
+    required Color txt, required Color sub,
+    Color? accentOverride,
+  }) {
+    final accent = accentOverride ?? _blue;
+    return Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accentOverride != null ? accentOverride!.withOpacity(0.5) : border),
+      ),
+      child: Row(children: [
+        SizedBox(width: 16),
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: accent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: accent, size: 16),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            obscureText: !show,
+            style: TextStyle(fontSize: 14, color: txt, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(fontSize: 12, color: sub, fontWeight: FontWeight.w500),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: sub, size: 18),
+          onPressed: onToggle,
+        ),
+      ]),
+    );
+  }
+ 
+  Widget _hint(bool ok, String label, Color sub) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(ok ? Icons.check_circle_rounded : Icons.circle_outlined,
+          size: 12, color: ok ? _green : sub.withOpacity(0.4)),
+      SizedBox(width: 3),
+      Text(label, style: TextStyle(fontSize: 10, color: ok ? _green : sub.withOpacity(0.5))),
+    ]);
   }
 }

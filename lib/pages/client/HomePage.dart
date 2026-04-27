@@ -47,33 +47,17 @@ class _HomePageState extends State<HomePage> {
 
   String get _username => AuthService.instance.currentUser?.username ?? 'Utilisateur';
 
+  // ── LOGOUT DIALOG amélioré ───────────────────────────────────────────────
   void _showLogoutDialog() {
-    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Se déconnecter', style: TextStyle(color: colorScheme.onSurface)),
-        content: Text('Êtes-vous sûr de vouloir vous déconnecter ?',
-            style: TextStyle(color: colorScheme.onSurface)),
-        backgroundColor: colorScheme.surface,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Annuler', style: TextStyle(color: colorScheme.onSurface)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              AuthService.instance.logout();
-              Navigator.pop(ctx);
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.error, foregroundColor: Colors.white,
-            ),
-            child: Text('Se déconnecter'),
-          ),
-        ],
+      barrierColor: Colors.black54,
+      builder: (ctx) => _LogoutDialog(
+        username: _username,
+        onConfirm: () {
+          AuthService.instance.logout();
+          Navigator.pushReplacementNamed(context, '/login');
+        },
       ),
     );
   }
@@ -111,7 +95,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  SIDEBAR — Clean: menu + logout only
+  //  SIDEBAR
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildSidebar(BuildContext ctx, Color bg, Color border, Color active, Color inactive, bool isDark) {
     final text = isDark ? Colors.white : Color(0xFF111827);
@@ -119,6 +103,7 @@ class _HomePageState extends State<HomePage> {
       width: 240,
       decoration: BoxDecoration(color: bg, border: Border(right: BorderSide(color: border))),
       child: Column(children: [
+        // Logo
         Padding(padding: EdgeInsets.fromLTRB(24, 32, 24, 28),
           child: Row(children: [
             Container(width: 36, height: 36,
@@ -133,24 +118,49 @@ class _HomePageState extends State<HomePage> {
         _sidebarSection('MENU', inactive),
         ...List.generate(_menuItems.length, (i) => _sidebarItem(i, active, inactive)),
         Spacer(),
-        // Logout button
+        // ── ZONE BAS SIDEBAR améliorée ──────────────────────────────────
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 1),
-          child: Material(color: Colors.transparent, borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              onTap: _showLogoutDialog,
-              borderRadius: BorderRadius.circular(10),
-              child: Padding(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(children: [
-                  Icon(Icons.logout_rounded, color: Color(0xFFdc2626), size: 19),
-                  SizedBox(width: 12),
-                  Text('Se déconnecter', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFFdc2626))),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(children: [
+            // Séparateur dégradé
+            Container(
+              margin: EdgeInsets.only(bottom: 16),
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  Colors.transparent,
+                  isDark ? Color(0xFF1e2028) : Color(0xFFf0f0f5),
+                  Colors.transparent,
                 ]),
               ),
             ),
-          ),
+            
+            // Bouton Se déconnecter
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: _showLogoutDialog,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFdc2626).withOpacity(isDark ? 0.10 : 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Color(0xFFdc2626).withOpacity(0.22)),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.logout_rounded, color: Color(0xFFdc2626), size: 16),
+                    SizedBox(width: 8),
+                    Text('Se déconnecter',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFdc2626))),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
         ),
-        SizedBox(height: 20),
       ]),
     );
   }
@@ -182,7 +192,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  TOP BAR — No search bar, no user avatar
+  //  TOP BAR
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildTopBar(BuildContext ctx, bool isDesktop, Color bg, Color border, Color active, Color inactive, bool isDark) {
     final text = isDark ? Colors.white : Color(0xFF111827);
@@ -285,7 +295,6 @@ class _DashboardTabState extends State<_DashboardTab> {
     final bord = dk ? Color(0xFF1e2028) : Color(0xFFf0f0f5);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-  
       if (_loading)            _loader(desk, card, bord)
       else if (_error != null) _err(card, bord, txt)
       else ...[
@@ -590,13 +599,13 @@ class _DashboardTabState extends State<_DashboardTab> {
         ]));
   }
 
-  
   Widget _loader(bool d, Color c, Color b) {
     Widget x() => Container(padding: EdgeInsets.all(18), height: 120, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(14), border: Border.all(color: b)),
         child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _blue))));
     if (d) return Row(children: List.generate(4, (i) => Expanded(child: Padding(padding: EdgeInsets.only(right: i < 3 ? 16 : 0), child: x()))));
     return Column(children: [Row(children: [Expanded(child: x()), SizedBox(width: 12), Expanded(child: x())]), SizedBox(height: 12), Row(children: [Expanded(child: x()), SizedBox(width: 12), Expanded(child: x())])]);
   }
+
   Widget _err(Color c, Color b, Color t) => Container(padding: EdgeInsets.all(40),
       decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(14), border: Border.all(color: b)),
       child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -605,6 +614,7 @@ class _DashboardTabState extends State<_DashboardTab> {
         Text(_error ?? '', style: TextStyle(fontSize: 12, color: Color(0xFF9ca3af)), textAlign: TextAlign.center), SizedBox(height: 16),
         TextButton.icon(onPressed: _load, icon: Icon(Icons.refresh, size: 16), label: Text('Réessayer'), style: TextButton.styleFrom(foregroundColor: _blue)),
       ])));
+
   String _ago(Map<String, dynamic> h) {
     final r = h['uploadDate'] ?? h['date']; if (r == null) return '—';
     try { final d = DateTime.parse(r.toString()).toLocal(); final df = DateTime.now().difference(d);
@@ -614,6 +624,9 @@ class _DashboardTabState extends State<_DashboardTab> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
 class _KD { final String l, v; final IconData i; final Color c; const _KD(this.l, this.v, this.i, this.c); }
 class _Step { final int num; final String title, desc; final IconData icon; final Color color; const _Step(this.num, this.title, this.desc, this.icon, this.color); }
 
@@ -622,4 +635,163 @@ class _TabNavigator extends StatelessWidget {
   const _TabNavigator({super.key, required this.child});
   @override Widget build(BuildContext context) => Navigator(
       onGenerateRoute: (s) => MaterialPageRoute(builder: (_) => child, settings: s));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  LOGOUT DIALOG — Pro & Animé
+// ═══════════════════════════════════════════════════════════════════════════════
+class _LogoutDialog extends StatefulWidget {
+  final String username;
+  final VoidCallback onConfirm;
+  const _LogoutDialog({required this.username, required this.onConfirm});
+
+  @override
+  State<_LogoutDialog> createState() => _LogoutDialogState();
+}
+
+class _LogoutDialogState extends State<_LogoutDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double> _scale, _fade;
+  bool _loading = false;
+
+  static const _red = Color(0xFFdc2626);
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: Duration(milliseconds: 280));
+    _scale = CurvedAnimation(parent: _anim, curve: Curves.easeOutBack);
+    _fade  = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
+    _anim.forward();
+  }
+
+  @override
+  void dispose() { _anim.dispose(); super.dispose(); }
+
+  Future<void> _confirm() async {
+    setState(() => _loading = true);
+    await Future.delayed(Duration(milliseconds: 400));
+    if (mounted) {
+      Navigator.pop(context);
+      widget.onConfirm();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dk     = Theme.of(context).brightness == Brightness.dark;
+    final bg     = dk ? Color(0xFF151921) : Colors.white;
+    final border = dk ? Color(0xFF2a3040) : Color(0xFFE2E8F0);
+    final txt    = dk ? Colors.white : Color(0xFF0F172A);
+    final sub    = dk ? Color(0xFF94A3B8) : Color(0xFF64748B);
+    final initials = widget.username.isNotEmpty ? widget.username[0].toUpperCase() : 'U';
+
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            width: 380,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(dk ? 0.55 : 0.18),
+                blurRadius: 48, offset: Offset(0, 24),
+              )],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+              // ── ZONE ICÔNE ─────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(28, 32, 28, 28),
+                decoration: BoxDecoration(
+                  color: dk ? Color(0xFF1a1014) : Color(0xFFFFF5F5),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(bottom: BorderSide(color: border)),
+                ),
+                child: Column(children: [
+                  // Icône cerclée
+                  Stack(alignment: Alignment.center, children: [
+                    Container(
+                      width: 72, height: 72,
+                      decoration: BoxDecoration(
+                        color: _red.withOpacity(0.08), shape: BoxShape.circle,
+                        border: Border.all(color: _red.withOpacity(0.2), width: 1.5),
+                      ),
+                    ),
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFef4444), _red],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: _red.withOpacity(0.35), blurRadius: 16, offset: Offset(0, 6))],
+                      ),
+                      child: Icon(Icons.logout_rounded, color: Colors.white, size: 24),
+                    ),
+                  ]),
+                  SizedBox(height: 18),
+                  Text('Se déconnecter ?',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: txt, letterSpacing: -0.4)),
+                  SizedBox(height: 10),
+                  
+                  
+                ]),
+              ),
+
+              // ── BOUTONS ────────────────────────────────────────────────
+              Padding(
+                padding: EdgeInsets.all(20),
+                child: Row(children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _loading ? null : () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: sub,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: border),
+                        ),
+                      ),
+                      child: Text('Annuler', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _confirm,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: _red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _loading
+                          ? SizedBox(width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Icon(Icons.logout_rounded, size: 16),
+                              SizedBox(width: 6),
+                              Text('Déconnecter', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                            ]),
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 }
