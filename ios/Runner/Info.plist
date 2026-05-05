@@ -45,5 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+
+	<key>NSCameraUsageDescription</key>
+<string>Pour scanner vos documents papier</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Pour importer des photos de votre galerie</string>
+
 </dict>
 </plist>

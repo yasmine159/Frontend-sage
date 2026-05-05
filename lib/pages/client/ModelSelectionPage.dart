@@ -57,9 +57,9 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
     setState(() => _downloading.add(code));
     try {
       await _api.downloadTemplate(code);
-      if (mounted) _snack('$title downloaded successfully', _green);
+      if (mounted) _snack('$title téléchargé avec succès', _green);
     } catch (e) {
-      if (mounted) _snack('Download failed: $e', _red);
+      if (mounted) _snack('Échec du téléchargement: $e', _red);
     } finally {
       if (mounted) setState(() => _downloading.remove(code));
     }
@@ -99,9 +99,9 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
             _backButton(context, isDark, subCol),
             SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Import Models', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
+              Text('Modèles d\'import', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
                   color: textCol, letterSpacing: -0.3)),
-              Text('Choose a Sage X3 model and download its Excel template',
+              Text('Sélectionnez un modèle Sage X3 pour télécharger son template Excel',
                   style: TextStyle(fontSize: 12, color: subCol)),
             ])),
             _refreshButton(_load, subCol, isDark),
@@ -118,14 +118,14 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: _blue.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-                child: Text('${_filtered.length} model${_filtered.length == 1 ? '' : 's'}',
+                child: Text('${_filtered.length} modèle${_filtered.length == 1 ? '' : 's'}',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _blue)),
               ),
               Spacer(),
               if (_query.isNotEmpty)
                 GestureDetector(
                   onTap: () { _searchCtrl.clear(); _search(''); },
-                  child: Text('Clear', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _blue)),
+                  child: Text('Effacer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _blue)),
                 ),
             ]),
           ]),
@@ -254,82 +254,23 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: EdgeInsets.fromLTRB(28, 8, 28, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Handle
-          Container(width: 40, height: 4, margin: EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(color: sub.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
-          // Icon
-          Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [accent, accent.withOpacity(0.7)]),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: accent.withOpacity(0.25), blurRadius: 16, offset: Offset(0, 6))],
-            ),
-            child: Icon(Icons.description_rounded, color: Colors.white, size: 26),
-          ),
-          SizedBox(height: 18),
-          Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: txt), textAlign: TextAlign.center),
-          SizedBox(height: 6),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: accent.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-              child: Text(code, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent)),
-            ),
-            if (objet.isNotEmpty) ...[
-              SizedBox(width: 8),
-              Text(objet, style: TextStyle(fontSize: 12, color: sub)),
-            ],
-          ]),
-          SizedBox(height: 24),
-          // Info rows
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: dk ? Color(0xFF1a1d24) : Color(0xFFF7F8FA),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(children: [
-              _detailRow(Icons.code_rounded, 'Model Code', code, txt, sub),
-              Divider(height: 20, color: bord),
-              _detailRow(Icons.category_outlined, 'Object', objet.isEmpty ? '—' : objet, txt, sub),
-              Divider(height: 20, color: bord),
-              _detailRow(Icons.description_outlined, 'Description', texte.isEmpty ? '—' : texte, txt, sub),
-            ]),
-          ),
-          SizedBox(height: 24),
-          // Download button
-          SizedBox(
-            width: double.infinity, height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () { Navigator.pop(context); _download(code, title); },
-              icon: Icon(Icons.download_rounded, size: 18),
-              label: Text('Download Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent, foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ),
-        ]),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ModelDetailSheet(
+        code: code,
+        title: title,
+        objet: objet,
+        texte: texte,
+        accent: accent,
+        dk: dk,
+        card: card,
+        bord: bord,
+        txt: txt,
+        sub: sub,
+        api: _api,
+        onDownload: () => _download(code, title),
       ),
     );
-  }
-
-  Widget _detailRow(IconData icon, String label, String value, Color txt, Color sub) {
-    return Row(children: [
-      Icon(icon, size: 16, color: sub),
-      SizedBox(width: 10),
-      SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 12, color: sub))),
-      Expanded(child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: txt),
-          maxLines: 2, overflow: TextOverflow.ellipsis)),
-    ]);
   }
 
   // ── Shared widgets ────────────────────────────────────────────────────
@@ -381,7 +322,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         onChanged: _search,
         style: TextStyle(fontSize: 14, color: txt),
         decoration: InputDecoration(
-          hintText: 'Search by code, name or object...',
+          hintText: 'Rechercher par code, nom ou objet...',
           hintStyle: TextStyle(fontSize: 13, color: sub),
           prefixIcon: Icon(Icons.search, size: 18, color: sub),
           suffixIcon: _query.isNotEmpty
@@ -400,12 +341,12 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.cloud_off_outlined, size: 48, color: _red.withOpacity(0.4)),
           SizedBox(height: 16),
-          Text('Failed to load models', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
+          Text('Échec du chargement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
           SizedBox(height: 6),
           Text(_error ?? '', style: TextStyle(fontSize: 12, color: sub), textAlign: TextAlign.center),
           SizedBox(height: 20),
           TextButton.icon(onPressed: _load, icon: Icon(Icons.refresh, size: 16),
-              label: Text('Try again'), style: TextButton.styleFrom(foregroundColor: _blue)),
+              label: Text('Réessayer'), style: TextButton.styleFrom(foregroundColor: _blue)),
         ])));
   }
 
@@ -414,9 +355,405 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.search_off_rounded, size: 48, color: sub.withOpacity(0.4)),
           SizedBox(height: 16),
-          Text('No models found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
+          Text('Aucun modèle trouvé', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
           SizedBox(height: 6),
-          Text('Try adjusting your search', style: TextStyle(fontSize: 13, color: sub)),
+          Text('Essayez d\'ajuster votre recherche', style: TextStyle(fontSize: 13, color: sub)),
         ])));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODEL DETAIL SHEET — widget stateful séparé pour gérer le chargement async
+// ═══════════════════════════════════════════════════════════════════════════════
+class _ModelDetailSheet extends StatefulWidget {
+  final String code, title, objet, texte;
+  final Color accent, card, bord, txt, sub;
+  final bool dk;
+  final ApiService api;
+  final VoidCallback onDownload;
+
+  const _ModelDetailSheet({
+    required this.code, required this.title, required this.objet,
+    required this.texte, required this.accent, required this.card,
+    required this.bord, required this.txt, required this.sub,
+    required this.dk, required this.api, required this.onDownload,
+  });
+
+  @override
+  _ModelDetailSheetState createState() => _ModelDetailSheetState();
+}
+
+class _ModelDetailSheetState extends State<_ModelDetailSheet> {
+  Map<String, dynamic>? _details;
+  bool _loading = true;
+  String? _error;
+  String _activeTab = 'tous'; // 'tous' | 'obligatoires' | 'optionnels'
+
+  static const _green = Color(0xFF059669);
+  static const _amber = Color(0xFFd97706);
+  static const _blue  = Color(0xFF2563eb);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetails();
+  }
+
+  Future<void> _loadDetails() async {
+    try {
+      final data = await widget.api.getModelDetails(widget.code);
+      if (mounted) setState(() { _details = data; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
+    }
+  }
+
+  List<Map<String, dynamic>> get _allFields {
+    if (_details == null) return [];
+    final champs = (_details!['champs'] as List? ?? []).cast<Map<String, dynamic>>();
+    // Filtrer les séparateurs (indicateur == 'S' ou designation vide)
+    return champs.where((f) {
+      final ind = (f['indicateur'] ?? '').toString();
+      final champ = (f['champ'] ?? '').toString();
+      return ind != 'S' && champ.isNotEmpty;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get _filteredFields {
+    final all = _allFields;
+    if (_activeTab == 'obligatoires') return all.where((f) => f['obligatoire'] == true).toList();
+    if (_activeTab == 'optionnels') return all.where((f) => f['obligatoire'] != true).toList();
+    return all;
+  }
+
+  String _typeLabel(Map<String, dynamic> field) {
+    final champ = (field['champ'] ?? '').toString().toUpperCase();
+    final ind   = (field['indicateur'] ?? '').toString();
+    if (ind == 'D') return 'Date';
+    if (ind == 'M') return 'Montant';
+    if (ind == 'A') return 'Numérique';
+    if (champ.contains('NUM') || champ.contains('QTY') || champ.contains('AMT')) return 'Numérique';
+    if (champ.contains('DAT') || champ.contains('DATE')) return 'Date';
+    return 'Texte';
+  }
+
+  Color _typeColor(String type) {
+    switch (type) {
+      case 'Date': return Color(0xFF0891b2);
+      case 'Numérique': return Color(0xFF7c3aed);
+      case 'Montant': return Color(0xFFd97706);
+      default: return _blue;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenH = MediaQuery.of(context).size.height;
+
+    return Container(
+      height: screenH * 0.88,
+      decoration: BoxDecoration(
+        color: widget.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(children: [
+        // ── Handle ──────────────────────────────────────────────────────
+        Padding(
+          padding: EdgeInsets.only(top: 12, bottom: 4),
+          child: Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: widget.sub.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        // ── Header fixe ─────────────────────────────────────────────────
+        Padding(
+          padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+          child: Column(children: [
+            // Icône + titre
+            Row(children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [widget.accent, widget.accent.withOpacity(0.7)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: widget.accent.withOpacity(0.25), blurRadius: 12, offset: Offset(0, 4))],
+                ),
+                child: Icon(Icons.description_rounded, color: Colors.white, size: 22),
+              ),
+              SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(widget.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: widget.txt),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                SizedBox(height: 4),
+                Row(children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: widget.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(widget.code,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: widget.accent)),
+                  ),
+                  if (widget.objet.isNotEmpty) ...[
+                    SizedBox(width: 8),
+                    Flexible(child: Text(widget.objet,
+                        style: TextStyle(fontSize: 11, color: widget.sub),
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ],
+                ]),
+              ])),
+              // Bouton fermer
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(
+                    color: widget.sub.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.close, size: 16, color: widget.sub),
+                ),
+              ),
+            ]),
+
+            SizedBox(height: 16),
+
+            // Méta-infos (format date, séparateur)
+            if (!_loading && _details != null)
+              _metaRow(),
+
+            SizedBox(height: 16),
+          ]),
+        ),
+
+        // ── Contenu principal ────────────────────────────────────────────
+        Expanded(
+          child: _loading
+              ? _loadingState()
+              : _error != null
+                  ? _errorState()
+                  : _fieldsContent(),
+        ),
+
+        // ── Bouton download fixe en bas ──────────────────────────────────
+        Padding(
+          padding: EdgeInsets.fromLTRB(24, 12, 24, 28),
+          child: SizedBox(
+            width: double.infinity, height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () { Navigator.pop(context); widget.onDownload(); },
+              icon: Icon(Icons.download_rounded, size: 18),
+              label: Text('Télécharger le template Excel',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.accent, foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Meta row (format date, séparateur, nb champs) ────────────────────
+  Widget _metaRow() {
+    final formatDate = (_details!['formatDate'] ?? 'DDMMYYYY').toString();
+    final sep        = (_details!['separateur'] ?? ';').toString();
+    final total      = _allFields.length;
+    final reqCount   = _allFields.where((f) => f['obligatoire'] == true).length;
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: widget.dk ? Color(0xFF1a1d24) : Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: widget.bord),
+      ),
+      child: Row(children: [
+        _metaChip(Icons.calendar_today_outlined, formatDate, Color(0xFF0891b2)),
+        _metaDivider(),
+        _metaChip(Icons.device_hub_rounded, 'Sep: "$sep"', widget.sub),
+        _metaDivider(),
+        _metaChip(Icons.list_alt_rounded, '$total champs', _blue),
+        _metaDivider(),
+        _metaChip(Icons.star_rounded, '$reqCount obligatoires', _amber),
+      ]),
+    );
+  }
+
+  Widget _metaChip(IconData icon, String label, Color color) {
+    return Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(icon, size: 12, color: color),
+      SizedBox(width: 5),
+      Flexible(child: Text(label,
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+          maxLines: 1, overflow: TextOverflow.ellipsis)),
+    ]));
+  }
+
+  Widget _metaDivider() => Container(width: 1, height: 20, color: widget.bord);
+
+  // ── Loading ──────────────────────────────────────────────────────────
+  Widget _loadingState() {
+    return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      CircularProgressIndicator(color: widget.accent, strokeWidth: 2.5),
+      SizedBox(height: 16),
+      Text('Chargement des champs...', style: TextStyle(fontSize: 13, color: widget.sub)),
+    ]);
+  }
+
+  // ── Error ────────────────────────────────────────────────────────────
+  Widget _errorState() {
+    return Center(child: Padding(padding: EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.error_outline_rounded, size: 40, color: Colors.red.withOpacity(0.4)),
+        SizedBox(height: 12),
+        Text('Impossible de charger les champs', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: widget.txt)),
+        SizedBox(height: 6),
+        Text(_error ?? '', style: TextStyle(fontSize: 12, color: widget.sub), textAlign: TextAlign.center),
+        SizedBox(height: 16),
+        TextButton.icon(
+          onPressed: () { setState(() { _loading = true; _error = null; }); _loadDetails(); },
+          icon: Icon(Icons.refresh, size: 16),
+          label: Text('Réessayer'),
+          style: TextButton.styleFrom(foregroundColor: widget.accent),
+        ),
+      ]),
+    ));
+  }
+
+  // ── Fields content ───────────────────────────────────────────────────
+  Widget _fieldsContent() {
+    final fields = _filteredFields;
+    final total    = _allFields.length;
+    final reqCount = _allFields.where((f) => f['obligatoire'] == true).length;
+    final optCount = total - reqCount;
+
+    return Column(children: [
+      // Tabs filtre
+      Padding(
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
+        child: Row(children: [
+          _tabBtn('tous', 'Tous ($total)'),
+          SizedBox(width: 8),
+          _tabBtn('obligatoires', 'Obligatoires ($reqCount)'),
+          SizedBox(width: 8),
+          _tabBtn('optionnels', 'Optionnels ($optCount)'),
+        ]),
+      ),
+
+      // En-tête tableau
+      Padding(
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+        child: Row(children: [
+          Expanded(flex: 3, child: Text('Désignation', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: widget.sub))),
+          Expanded(flex: 2, child: Text('Champ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: widget.sub))),
+          SizedBox(width: 60, child: Text('Type', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: widget.sub))),
+          SizedBox(width: 72, child: Center(child: Text('Statut', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: widget.sub)))),
+        ]),
+      ),
+
+      Divider(height: 1, color: widget.bord),
+
+      // Liste des champs
+      Expanded(
+        child: fields.isEmpty
+            ? Center(child: Text('Aucun champ dans cette catégorie',
+                style: TextStyle(fontSize: 13, color: widget.sub)))
+            : ListView.separated(
+                padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
+                itemCount: fields.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: widget.bord.withOpacity(0.5)),
+                itemBuilder: (_, i) => _fieldRow(fields[i]),
+              ),
+      ),
+    ]);
+  }
+
+  Widget _tabBtn(String key, String label) {
+    final active = _activeTab == key;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = key),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: active ? widget.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: active ? widget.accent : widget.bord),
+          ),
+          child: Text(label, textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : widget.sub,
+              )),
+        ),
+      ),
+    );
+  }
+
+  Widget _fieldRow(Map<String, dynamic> field) {
+    final designation = (field['designation'] ?? '').toString();
+    final champ       = (field['champ']       ?? '').toString();
+    final obligatoire = field['obligatoire'] == true;
+    final type        = _typeLabel(field);
+    final typeColor   = _typeColor(type);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        // Désignation
+        Expanded(flex: 3, child: Text(
+          designation.isNotEmpty ? designation : '—',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: widget.txt),
+          maxLines: 2, overflow: TextOverflow.ellipsis,
+        )),
+
+        // Code champ
+        Expanded(flex: 2, child: Text(
+          champ,
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+              color: widget.accent, fontFamily: 'monospace'),
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+        )),
+
+        // Type badge
+        SizedBox(width: 60, child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: typeColor.withOpacity(widget.dk ? 0.15 : 0.08),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(type, textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: typeColor),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+        )),
+
+        // Obligatoire badge
+        SizedBox(width: 72, child: Center(child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: (obligatoire ? _amber : _green).withOpacity(widget.dk ? 0.15 : 0.08),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(
+            obligatoire ? 'Requis' : 'Optionnel',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 9, fontWeight: FontWeight.w600,
+              color: obligatoire ? _amber : _green,
+            ),
+          ),
+        ))),
+      ]),
+    );
   }
 }

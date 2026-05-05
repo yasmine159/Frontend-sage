@@ -9,6 +9,7 @@ import 'sections/activity_section.dart';
 import 'sections/templates_section.dart';
 import 'sections/settings_section.dart';
 import 'widgets/admin_shared_widgets.dart';
+import 'sections/feedback_section.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   @override
@@ -63,6 +64,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     {'icon': Icons.history_outlined,         'active': Icons.history,           'label': 'Activité'},
     {'icon': Icons.description_outlined,     'active': Icons.description,       'label': 'Modèles'},
     {'icon': Icons.tune_outlined,            'active': Icons.tune,              'label': 'Paramètres'},
+    {'icon': Icons.feedback_outlined, 'active': Icons.feedback, 'label': 'Feedbacks'},
   ];
 
   @override
@@ -196,6 +198,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           onLogout: _showLogoutDialog,
           onSnack: _snack,
         );
+      case 5:
+  return FeedbackSection(
+    desk: desk, dk: dk, card: card, bord: bord, txt: txt, sub: sub,
+    onSnack: _snack,
+  );
       default:
         return const SizedBox();
     }

@@ -55,7 +55,39 @@ class _MappingPageState extends State<MappingPage> {
   List<Map<String, dynamic>> _savedMappings = [];
 
   @override
-  void initState() { super.initState(); _loadModels(); _loadSavedMappings(); }
+void initState() {
+  super.initState();
+  _loadModels();
+  _loadSavedMappings();
+
+  // Si on arrive depuis OcrScanPage
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    if (args != null && args['excelBytes'] != null) {
+      _loadFromOcrBytes(
+        args['excelBytes'] as Uint8List,
+        args['excelFileName'] as String,
+      );
+    }
+  });
+}
+
+Future<void> _loadFromOcrBytes(Uint8List bytes, String fileName) async {
+  setState(() {
+    _file = PlatformFile(name: fileName, size: bytes.length, bytes: bytes);
+    _readingHeaders = true;
+  });
+  try {
+    final headers = await _api.readExcelHeaders(bytes, fileName);
+    setState(() {
+      _excelHeaders = headers;
+      _readingHeaders = false;
+      _step = 1; // Aller directement à l'étape mapping
+    });
+  } catch (e) {
+    setState(() => _readingHeaders = false);
+  }
+}
 
   Future<void> _loadModels() async {
     setState(() => _loadingModels = true);

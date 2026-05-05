@@ -6,6 +6,7 @@ import 'package:frontend_sage3/pages/client/ReportPage.dart';
 import 'package:frontend_sage3/pages/client/SettingsPage.dart';
 import 'package:frontend_sage3/pages/client/UploadPage.dart';
 import 'package:frontend_sage3/pages/client/HistoryPage.dart';
+import 'package:frontend_sage3/pages/client/OcrScanPage.dart';
 import 'package:frontend_sage3/widgets/ChatWidget.dart';
 import 'package:frontend_sage3/services/api_service.dart';
 import 'package:frontend_sage3/services/auth_service.dart';
@@ -320,6 +321,13 @@ class _DashboardTabState extends State<_DashboardTab> {
                     accentLight: Color(0xFFcffafe), buttonLabel: 'Mapper les colonnes', buttonIcon: Icons.account_tree_rounded,
                     stat: null,
                     onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => MappingPage())))),
+                SizedBox(width: 16),
+                Expanded(child: _heroCard(ctx, dk, title: 'Scanner un document',
+                    desc: 'Prenez une photo de votre tableau papier — l\'IA extrait les données et les convertit en Excel.',
+                    icon: Icons.document_scanner_rounded, gradient: [Color(0xFF059669), Color(0xFF10b981)],
+                    accentLight: Color(0xFFd1fae5), buttonLabel: 'Scanner & Importer', buttonIcon: Icons.camera_alt_rounded,
+                    stat: null,
+                    onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const OcrScanPage())))),
               ])
             : Column(children: [
                 _heroCard(ctx, dk, title: 'Importer & Convertir', desc: 'Importez Excel, validez les champs, générez le CSV.',
@@ -339,6 +347,12 @@ class _DashboardTabState extends State<_DashboardTab> {
                     accentLight: Color(0xFFcffafe), buttonLabel: 'Mapper les colonnes', buttonIcon: Icons.account_tree_rounded,
                     stat: null,
                     onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => MappingPage()))),
+                SizedBox(height: 16),
+                _heroCard(ctx, dk, title: 'Scanner un document', desc: 'Photo de votre tableau papier → Excel automatique via IA.',
+                    icon: Icons.document_scanner_rounded, gradient: [Color(0xFF059669), Color(0xFF10b981)],
+                    accentLight: Color(0xFFd1fae5), buttonLabel: 'Scanner & Importer', buttonIcon: Icons.camera_alt_rounded,
+                    stat: null,
+                    onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const OcrScanPage()))),
               ]),
         SizedBox(height: 28),
         if (_isNew) ...[

@@ -130,6 +130,15 @@ class ApiService {
       throw Exception('Failed to load models: ${e.message}');
     }
   }
+  // ── GET /api/models/{code} ───────────────────────────────────────────────
+Future<Map<String, dynamic>> getModelDetails(String code) async {
+  try {
+    final response = await _dio.get('/api/models/$code');
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    throw Exception('Failed to load model details: ${e.message}');
+  }
+}
 
   // ── GET /api/templates/{code}/excel ──────────────────────────────────────
   Future<void> downloadTemplate(String modelCode) async {
@@ -383,6 +392,57 @@ Future<Map<String, dynamic>> getAnalytics({int? userId, String period = '30d'}) 
       throw Exception(e.response?.data?['message'] ?? e.message);
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+//  AJOUTS À METTRE DANS api_service.dart  —  Section OCR
+//  Ajouter ces 2 méthodes à la classe ApiService existante
+// ═══════════════════════════════════════════════════════════════════════════
+
+  // ── POST /api/ocr/scan-table ──────────────────────────────────────────────
+  // Envoie une image au backend, reçoit headers + rows extraits par OCR
+  Future<Map<String, dynamic>> scanImageToTable(Uint8List imageBytes,
+      {String fileName = 'scan.jpg'}) async {
+    try {
+      final multipartFile =
+          MultipartFile.fromBytes(imageBytes, filename: fileName);
+      final formData = FormData.fromMap({'image': multipartFile});
+
+      final response = await _dio.post('/api/ocr/scan-table', data: formData);
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+          e.response?.data?['message'] ?? 'Erreur OCR : ${e.message}');
+    }
+  }
+
+  // ── POST /api/ocr/table-to-excel ─────────────────────────────────────────
+  // Envoie headers + rows, reçoit un fichier .xlsx en bytes
+  Future<Map<String, dynamic>> tableToExcel({
+    required List<String> headers,
+    required List<List<String>> rows,
+    String? fileName,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/ocr/table-to-excel',
+        data: {
+          'headers': headers,
+          'rows': rows,
+          if (fileName != null) 'fileName': fileName,
+        },
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final bytes = Uint8List.fromList(response.data as List<int>);
+      final fn = fileName ?? 'scan_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      return {'excelBytes': bytes, 'fileName': fn};
+    } on DioException catch (e) {
+      throw Exception(
+          e.response?.data?['message'] ?? 'Erreur Excel : ${e.message}');
+    }
+  }
+
+  
   
 
 }
