@@ -8,7 +8,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import '../../services/api_service.dart';
 import '../../services/api_service_web.dart'
-    if (dart.library.io) '../../services/api_service_stub.dart';
+if (dart.library.io) '../../services/api_service_stub.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  OcrScanPage  —  Google ML Kit Text Recognition (100% GRATUIT, OFFLINE)
@@ -81,10 +81,11 @@ class _OcrScanPageState extends State<OcrScanPage>
   Future<void> _takePhoto() async {
     final xfile = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 100,         // Qualité maximale pour meilleur OCR
+        imageQuality: 100,
         preferredCameraDevice: CameraDevice.rear);
     if (xfile == null) return;
     final bytes = await xfile.readAsBytes();
+    if (!mounted) return;
     setState(() {
       _imageFile = xfile; _imageBytes = bytes;
       _headers = []; _rows = []; _showTable = false;
@@ -96,10 +97,46 @@ class _OcrScanPageState extends State<OcrScanPage>
         source: ImageSource.gallery, imageQuality: 100);
     if (xfile == null) return;
     final bytes = await xfile.readAsBytes();
+    if (!mounted) return;
     setState(() {
       _imageFile = xfile; _imageBytes = bytes;
       _headers = []; _rows = []; _showTable = false;
     });
+  }
+
+  // ── OCR Web — envoie l'image au backend .NET (Python+Tesseract) ─────────────
+  Future<void> _scanWeb() async {
+    if (_imageBytes == null) return;
+    setState(() {
+      _scanning = true;
+      _scanStatus = "Envoi de l'image au serveur...";
+      _showTable = false;
+    });
+    try {
+      setState(() => _scanStatus = 'Analyse du tableau en cours...');
+      final result = await _api.scanImageToTable(
+        _imageBytes!,
+        fileName: _imageFile?.name ?? 'scan.jpg',
+      );
+      final rawHeaders = (result['headers'] as List<dynamic>? ?? [])
+          .map((e) => e.toString()).toList();
+      final rawRows = (result['rows'] as List<dynamic>? ?? [])
+          .map((r) => (r as List<dynamic>).map((c) => c.toString()).toList())
+          .toList();
+      setState(() {
+        _headers = rawHeaders;
+        _rows = rawRows;
+        _showTable = true;
+        _scanning = false;
+        _scanStatus = '';
+      });
+      if (_headers.isEmpty) {
+        _snack('Aucun tableau détecté. Essayez avec une image plus nette.', _amber);
+      }
+    } catch (e) {
+      setState(() { _scanning = false; _scanStatus = ''; });
+      _snack('Erreur : $e', _red);
+    }
   }
 
   // ── OCR avec Google ML Kit ───────────────────────────────────────────────────
@@ -107,7 +144,7 @@ class _OcrScanPageState extends State<OcrScanPage>
     if (_imageFile == null || kIsWeb) return;
     setState(() {
       _scanning = true;
-      _scanStatus = 'Reconnaissance du texte en cours…';
+      _scanStatus = 'Reconnaissance du texte en cours...';
       _showTable = false;
     });
 
@@ -116,13 +153,15 @@ class _OcrScanPageState extends State<OcrScanPage>
       final inputImage = InputImage.fromFilePath(_imageFile!.path!);
       final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
-      setState(() => _scanStatus = 'Analyse des colonnes du tableau…');
+      if (!mounted) return;
+      setState(() => _scanStatus = 'Analyse des colonnes du tableau...');
       final recognized = await textRecognizer.processImage(inputImage);
       await textRecognizer.close();
 
       // Extraire les blocs de texte avec leurs positions
       final blocks = recognized.blocks;
       if (blocks.isEmpty) {
+        if (!mounted) return;
         setState(() { _scanning = false; _scanStatus = ''; _showTable = true; });
         return;
       }
@@ -142,6 +181,7 @@ class _OcrScanPageState extends State<OcrScanPage>
         _snack('Aucun tableau détecté. Essayez de photographier de face.', _amber);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() { _scanning = false; _scanStatus = ''; });
       _snack('Erreur ML Kit : $e', _red);
     }
@@ -247,7 +287,8 @@ class _OcrScanPageState extends State<OcrScanPage>
     final ctrl = TextEditingController(text: current);
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      // dialogCtx = context du dialog, pas du widget parent
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(row == -1 ? 'Modifier l\'en-tête' : 'Modifier la cellule',
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -256,16 +297,27 @@ class _OcrScanPageState extends State<OcrScanPage>
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 filled: true)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Annuler'),
+          ),
           ElevatedButton(
             onPressed: () {
+              // Fermer le dialog d'abord avec son propre context
+              Navigator.pop(dialogCtx);
+              // Puis mettre à jour le state si le widget est encore monté
+              if (!mounted) return;
               setState(() {
-                if (row == -1) { _headers[col] = ctrl.text; }
-                else { while (_rows[row].length <= col) _rows[row].add(''); _rows[row][col] = ctrl.text; }
+                if (row == -1) {
+                  _headers[col] = ctrl.text;
+                } else {
+                  while (_rows[row].length <= col) _rows[row].add('');
+                  _rows[row][col] = ctrl.text;
+                }
               });
-              Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: _violet,
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _violet,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text('OK'),
@@ -293,6 +345,7 @@ class _OcrScanPageState extends State<OcrScanPage>
       Navigator.pushNamed(context, '/mapping',
           arguments: {'excelBytes': bytes, 'excelFileName': fileName});
     } catch (e) {
+      if (!mounted) return;
       setState(() => _generatingExcel = false);
       _snack('Erreur Excel : $e', _red);
     }
@@ -308,12 +361,105 @@ class _OcrScanPageState extends State<OcrScanPage>
       final bytes    = result['excelBytes'] as Uint8List;
       final fileName = result['fileName'] as String;
       setState(() => _generatingExcel = false);
-      kIsWeb ? triggerWebDownload(bytes, fileName) : saveMobileFile(bytes, fileName);
-      _snack('Excel téléchargé !', _green);
+
+      if (kIsWeb) {
+        triggerWebDownload(bytes, fileName);
+        _snack('Excel téléchargé !', _green);
+      } else {
+        await saveMobileFile(bytes, fileName);
+        if (!mounted) return;
+        _showSaveSuccessDialog(fileName);
+      }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _generatingExcel = false);
       _snack('Erreur : $e', _red);
     }
+  }
+
+  // Dialog qui montre où le fichier est sauvegardé
+  void _showSaveSuccessDialog(String fileName) {
+    final dk   = Theme.of(context).brightness == Brightness.dark;
+    final txt  = dk ? Colors.white : const Color(0xFF111827);
+    final sub  = dk ? const Color(0xFF6b7280) : const Color(0xFF6b7280);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Icône succès
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: _green.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.check_circle_rounded,
+                color: _green, size: 40),
+          ),
+          const SizedBox(height: 16),
+          Text('Excel sauvegardé !',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: txt)),
+          const SizedBox(height: 8),
+          Text('Votre fichier a été enregistré dans :',
+              style: TextStyle(fontSize: 13, color: sub),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+
+          // Chemin du fichier
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: dk ? const Color(0xFF1e2028) : const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              Icon(Icons.folder_rounded, color: _amber, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '📁 Téléchargements/$fileName',
+                  style: TextStyle(fontSize: 12, color: txt, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+
+          // Instruction
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: _blue.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _blue.withOpacity(0.15))),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline_rounded, color: _blue, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Ouvrez l\'app "Fichiers" ou "Mes fichiers" '
+                      'sur votre téléphone → Téléchargements → $fileName',
+                  style: TextStyle(fontSize: 11, color: sub, height: 1.5),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 20),
+
+          // Bouton fermer
+          SizedBox(width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _green, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('Parfait !', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   void _snack(String msg, Color c) => ScaffoldMessenger.of(context).showSnackBar(
@@ -340,9 +486,8 @@ class _OcrScanPageState extends State<OcrScanPage>
           padding: EdgeInsets.all(desk ? 32 : 20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            // Bannière web
-            if (kIsWeb) _webBanner(dk, card, bord, txt, sub),
-            if (!kIsWeb) _infoCard(dk, card, bord, txt, sub),
+            // Info card
+            _infoCard(dk, card, bord, txt, sub),
             const SizedBox(height: 24),
 
             _photoSection(dk, card, bord, txt, sub),
@@ -351,7 +496,7 @@ class _OcrScanPageState extends State<OcrScanPage>
               const SizedBox(height: 20),
               _imagePreview(dk, card, bord, txt, sub),
               const SizedBox(height: 16),
-              if (!kIsWeb) _scanBtn(),
+              _scanBtn(),
             ],
 
             if (_scanning) ...[const SizedBox(height: 24), _scanningCard(dk, card, bord, txt, sub)],
@@ -424,11 +569,10 @@ class _OcrScanPageState extends State<OcrScanPage>
         Icon(Icons.check_circle_outline_rounded, color: _green, size: 20),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('100% Gratuit • Fonctionne sans Internet',
+          Text(kIsWeb ? 'Importer depuis votre PC' : '100% Gratuit • Fonctionne sans Internet',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: txt)),
           const SizedBox(height: 6),
-          Text('Google ML Kit traite l\'image directement sur votre téléphone.\n'
-              'Aucune donnée envoyée en ligne. Résultat instantané.',
+          Text(kIsWeb ? 'Importez un screenshot ou scan de tableau.\nL\'IA extrait automatiquement les colonnes et données.' : 'Google ML Kit traite l\'image directement sur votre téléphone.\nAucune donnée envoyée en ligne.',
               style: TextStyle(fontSize: 12, color: sub, height: 1.5)),
         ])),
       ]),
@@ -446,8 +590,8 @@ class _OcrScanPageState extends State<OcrScanPage>
             dk: dk, card: card, bord: bord, txt: txt, sub: sub)),
         const SizedBox(width: 12),
         Expanded(child: _srcBtn(icon: Icons.photo_library_rounded, label: 'Depuis la galerie',
-            sublabel: 'Galerie / Fichier', color: _blue,
-            onTap: kIsWeb ? null : _pickFromGallery, disabled: kIsWeb,
+            sublabel: kIsWeb ? 'Fichier depuis PC' : 'Galerie / Fichier', color: _blue,
+            onTap: _pickFromGallery, disabled: false,
             dk: dk, card: card, bord: bord, txt: txt, sub: sub)),
       ]),
     ]);
@@ -462,17 +606,17 @@ class _OcrScanPageState extends State<OcrScanPage>
         decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(14), border: Border.all(color: bord)),
         child: Material(color: Colors.transparent, borderRadius: BorderRadius.circular(14),
           child: InkWell(onTap: disabled ? null : onTap, borderRadius: BorderRadius.circular(14),
-            child: Padding(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(children: [
-                Container(padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                    child: Icon(icon, color: color, size: 24)),
-                const SizedBox(height: 10),
-                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txt), textAlign: TextAlign.center),
-                const SizedBox(height: 2),
-                Text(sublabel, style: TextStyle(fontSize: 10, color: sub), textAlign: TextAlign.center),
-              ]),
-            )),
+              child: Padding(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                child: Column(children: [
+                  Container(padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(icon, color: color, size: 24)),
+                  const SizedBox(height: 10),
+                  Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txt), textAlign: TextAlign.center),
+                  const SizedBox(height: 2),
+                  Text(sublabel, style: TextStyle(fontSize: 10, color: sub), textAlign: TextAlign.center),
+                ]),
+              )),
         ),
       ),
     );
@@ -483,15 +627,15 @@ class _OcrScanPageState extends State<OcrScanPage>
       decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), border: Border.all(color: bord)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            Icon(Icons.image_outlined, size: 16, color: sub), const SizedBox(width: 8),
-            Expanded(child: Text(_imageFile?.name ?? 'Image',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: txt),
-                overflow: TextOverflow.ellipsis)),
-            GestureDetector(
-                onTap: () => setState(() { _imageFile = null; _imageBytes = null; _showTable = false; }),
-                child: Icon(Icons.close, size: 16, color: sub)),
-          ])),
+            child: Row(children: [
+              Icon(Icons.image_outlined, size: 16, color: sub), const SizedBox(width: 8),
+              Expanded(child: Text(_imageFile?.name ?? 'Image',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: txt),
+                  overflow: TextOverflow.ellipsis)),
+              GestureDetector(
+                  onTap: () => setState(() { _imageFile = null; _imageBytes = null; _showTable = false; }),
+                  child: Icon(Icons.close, size: 16, color: sub)),
+            ])),
         ClipRRect(borderRadius: const BorderRadius.vertical(bottom: Radius.circular(15)),
             child: Image.memory(_imageBytes!, width: double.infinity, height: 220, fit: BoxFit.cover)),
       ]),
@@ -507,13 +651,13 @@ class _OcrScanPageState extends State<OcrScanPage>
             borderRadius: BorderRadius.circular(14),
             boxShadow: [BoxShadow(color: _violet.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]),
         child: Material(color: Colors.transparent, borderRadius: BorderRadius.circular(14),
-          child: InkWell(onTap: _scanning ? null : _scan, borderRadius: BorderRadius.circular(14),
-            child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 10),
-              Text(_showTable ? 'Re-scanner' : 'Analyser le tableau',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
-            ])))),
+            child: InkWell(onTap: _scanning ? null : (kIsWeb ? _scanWeb : _scan), borderRadius: BorderRadius.circular(14),
+                child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  Text(_showTable ? 'Re-scanner' : 'Analyser le tableau',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                ])))),
       ),
     );
   }
@@ -566,11 +710,11 @@ class _OcrScanPageState extends State<OcrScanPage>
                 DataColumn(label: Text('#', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: sub))),
                 ..._headers.asMap().entries.map((e) => DataColumn(
                   label: GestureDetector(onTap: () => _editCell(-1, e.key, e.value),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: txt)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.edit, size: 11, color: sub),
-                    ])),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: txt)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit, size: 11, color: sub),
+                      ])),
                 )),
                 const DataColumn(label: SizedBox()),
               ],
@@ -582,11 +726,11 @@ class _OcrScanPageState extends State<OcrScanPage>
                     final ci = ce.key;
                     final val = ci < row.length ? row[ci] : '';
                     return DataCell(GestureDetector(onTap: () => _editCell(ri, ci, val),
-                      child: Container(constraints: const BoxConstraints(maxWidth: 140),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Flexible(child: Text(val, style: TextStyle(fontSize: 12, color: txt), overflow: TextOverflow.ellipsis)),
-                          const SizedBox(width: 4), Icon(Icons.edit, size: 10, color: sub),
-                        ]))));
+                        child: Container(constraints: const BoxConstraints(maxWidth: 140),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Flexible(child: Text(val, style: TextStyle(fontSize: 12, color: txt), overflow: TextOverflow.ellipsis)),
+                              const SizedBox(width: 4), Icon(Icons.edit, size: 10, color: sub),
+                            ]))));
                   }),
                   DataCell(IconButton(icon: Icon(Icons.delete_outline, size: 16, color: _red.withOpacity(0.5)),
                       onPressed: () => _deleteRow(ri), padding: EdgeInsets.zero, constraints: const BoxConstraints())),
@@ -612,14 +756,14 @@ class _OcrScanPageState extends State<OcrScanPage>
             child: InkWell(onTap: _generatingExcel ? null : _generateAndMap, borderRadius: BorderRadius.circular(14),
               child: Center(child: _generatingExcel
                   ? Row(mainAxisSize: MainAxisSize.min, children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withOpacity(0.8))),
-                      const SizedBox(width: 10),
-                      const Text('Génération Excel…', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
-                    ])
+                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withOpacity(0.8))),
+                const SizedBox(width: 10),
+                const Text('Génération Excel...', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+              ])
                   : const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18), SizedBox(width: 10),
-                      Text('Continuer vers le Mapping', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
-                    ])),
+                Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18), SizedBox(width: 10),
+                Text('Continuer vers le Mapping', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+              ])),
             ),
           ),
         ),
@@ -673,5 +817,5 @@ class _TextElement {
   final String text;
   final double x, y, width, height;
   const _TextElement({required this.text, required this.x, required this.y,
-      required this.width, required this.height});
+    required this.width, required this.height});
 }

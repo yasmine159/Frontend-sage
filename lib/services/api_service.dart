@@ -6,7 +6,13 @@ import 'auth_service.dart';
 import 'api_service_web.dart' if (dart.library.io) 'api_service_stub.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5160';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:5160';
+    } else {
+      return 'http://192.168.100.27:5160'; // ← remplace par ton IP
+    }
+  }
 
   static int get userId => AuthService.instance.currentUser?.id ?? 0;
 
@@ -34,13 +40,51 @@ class ApiService {
     }
   }
 
+  // ── POST /api/users/forgot-password ──────────────────────────────────────
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _dio.post('/api/users/forgot-password', data: {'email': email});
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message);
+    }
+  }
+
+  // ── POST /api/users/reset-password ───────────────────────────────────────
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post('/api/users/reset-password', data: {
+        'email': email, 'token': token, 'newPassword': newPassword,
+      });
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message);
+    }
+  }
+
+  // ── POST /api/users/google-login ─────────────────────────────────────────
+  Future<Map<String, dynamic>> googleLogin(String idToken) async {
+    try {
+      final response = await _dio.post('/api/users/google-login', data: {
+        'idToken': idToken,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message);
+    }
+  }
+
   // ── POST /api/users/register ─────────────────────────────────────────────
   Future<Map<String, dynamic>> register(
-      String username, String email, String password) async {
+      String username, String email, String password,
+      {String phone = '', String company = ''}) async {
     try {
       final response = await _dio.post('/api/users/register', data: {
         'username': username, 'email': email,
         'password': password, 'role': 'User',
+        'phone': phone, 'company': company,
       });
       return Map<String, dynamic>.from(response.data);
     } on DioException catch (e) {
@@ -446,4 +490,3 @@ Future<Map<String, dynamic>> getAnalytics({int? userId, String period = '30d'}) 
   
 
 }
-

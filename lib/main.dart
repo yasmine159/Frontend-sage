@@ -4,6 +4,7 @@ import 'package:frontend_sage3/pages/auth/LoginPage.dart';
 import 'package:frontend_sage3/pages/auth/RegisterPage.dart';
 import 'package:frontend_sage3/pages/client/HomePage.dart';
 import 'package:frontend_sage3/pages/client/MappingPage.dart';
+import 'package:frontend_sage3/pages/auth/ResetPasswordPage.dart';
 
 void main() {
   runApp(SageX3App());
@@ -116,6 +117,13 @@ class _SageX3AppState extends State<SageX3App> {
         '/admin': (context) => AdminDashboardPage(),
         'report' :(context) => RegisterPage(),
         '/mapping': (context) => MappingPage(),
+
+        '/reset-password': (context) {
+        final uri   = Uri.base;
+        final token = uri.queryParameters['token'] ?? '';
+        final email = uri.queryParameters['email'] ?? '';
+        return ResetPasswordPage(token: token, email: email);
+        },
       },
 
       initialRoute: '/',
