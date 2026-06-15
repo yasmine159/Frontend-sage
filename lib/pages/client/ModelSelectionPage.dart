@@ -47,8 +47,8 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
         final texte = (m['texte']      ?? '').toString().toLowerCase();
         final objet = (m['objet']      ?? '').toString().toLowerCase();
         return code.contains(q.toLowerCase()) ||
-               texte.contains(q.toLowerCase()) ||
-               objet.contains(q.toLowerCase());
+            texte.contains(q.toLowerCase()) ||
+            objet.contains(q.toLowerCase());
       }).toList();
     });
   }
@@ -218,25 +218,25 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
               // Download button
               isDown
                   ? SizedBox(width: 22, height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: accentColor))
+                  child: CircularProgressIndicator(strokeWidth: 2, color: accentColor))
                   : Container(
-                      decoration: BoxDecoration(
-                        color: accentColor.withOpacity(dk ? 0.15 : 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        child: InkWell(
-                          onTap: () => _download(code, title),
-                          borderRadius: BorderRadius.circular(10),
-                          child: Padding(
-                            padding: EdgeInsets.all(9),
-                            child: Icon(Icons.download_rounded, color: accentColor, size: 18),
-                          ),
-                        ),
-                      ),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(dk ? 0.15 : 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _download(code, title),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: EdgeInsets.all(9),
+                      child: Icon(Icons.download_rounded, color: accentColor, size: 18),
                     ),
+                  ),
+                ),
+              ),
             ]),
           ),
         ),
@@ -327,7 +327,7 @@ class _ModelSelectionPageState extends State<ModelSelectionPage> {
           prefixIcon: Icon(Icons.search, size: 18, color: sub),
           suffixIcon: _query.isNotEmpty
               ? IconButton(icon: Icon(Icons.close, size: 16, color: sub),
-                  onPressed: () { _searchCtrl.clear(); _search(''); })
+              onPressed: () { _searchCtrl.clear(); _search(''); })
               : null,
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -427,22 +427,29 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet> {
   }
 
   String _typeLabel(Map<String, dynamic> field) {
+    // Priorité 1 : typeDonnee retourné par le backend (source de vérité)
+    final td = (field['typeDonnee'] ?? '').toString().trim().toUpperCase();
+    if (td == 'D')   return 'Date';
+    if (td == 'DCB') return 'Décimal';
+    if (td == 'L')   return 'Entier';
+    if (td == 'A')   return 'Texte';
+
+    // Priorité 2 : repli sur suffixe du code champ si typeDonnee vide
     final champ = (field['champ'] ?? '').toString().toUpperCase();
-    final ind   = (field['indicateur'] ?? '').toString();
-    if (ind == 'D') return 'Date';
-    if (ind == 'M') return 'Montant';
-    if (ind == 'A') return 'Numérique';
-    if (champ.contains('NUM') || champ.contains('QTY') || champ.contains('AMT')) return 'Numérique';
     if (champ.contains('DAT') || champ.contains('DATE')) return 'Date';
+    if (champ.contains('QTY') || champ.contains('AMT') ||
+        champ.contains('PRI') || champ.contains('NUM')) return 'Numérique';
     return 'Texte';
   }
 
   Color _typeColor(String type) {
     switch (type) {
-      case 'Date': return Color(0xFF0891b2);
-      case 'Numérique': return Color(0xFF7c3aed);
+      case 'Date':    return Color(0xFF0891b2);
+      case 'Numérique':
+      case 'Entier':  return Color(0xFF7c3aed);
+      case 'Décimal': return Color(0xFF7c3aed);
       case 'Montant': return Color(0xFFd97706);
-      default: return _blue;
+      default:        return _blue;
     }
   }
 
@@ -536,8 +543,8 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet> {
           child: _loading
               ? _loadingState()
               : _error != null
-                  ? _errorState()
-                  : _fieldsContent(),
+              ? _errorState()
+              : _fieldsContent(),
         ),
 
         // ── Bouton download fixe en bas ──────────────────────────────────
@@ -666,13 +673,13 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet> {
       Expanded(
         child: fields.isEmpty
             ? Center(child: Text('Aucun champ dans cette catégorie',
-                style: TextStyle(fontSize: 13, color: widget.sub)))
+            style: TextStyle(fontSize: 13, color: widget.sub)))
             : ListView.separated(
-                padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
-                itemCount: fields.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: widget.bord.withOpacity(0.5)),
-                itemBuilder: (_, i) => _fieldRow(fields[i]),
-              ),
+          padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
+          itemCount: fields.length,
+          separatorBuilder: (_, __) => Divider(height: 1, color: widget.bord.withOpacity(0.5)),
+          itemBuilder: (_, i) => _fieldRow(fields[i]),
+        ),
       ),
     ]);
   }

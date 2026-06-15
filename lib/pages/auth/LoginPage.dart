@@ -3,6 +3,8 @@ import 'package:frontend_sage3/pages/auth/ForgotPasswordPage.dart';
 import 'package:frontend_sage3/pages/auth/RegisterPage.dart';
 import 'package:frontend_sage3/services/api_service.dart';
 import 'package:frontend_sage3/services/auth_service.dart';
+import 'package:frontend_sage3/main.dart';
+import 'package:frontend_sage3/app_strings.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -17,7 +19,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final ApiService _api = ApiService();
 
-  // ── State ─────────────────────────────────────────────────────────────────
   bool _isPasswordVisible = false;
   bool _isLoading         = false;
   bool _rememberMe        = false;
@@ -33,6 +34,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   static const Color _textMid   = Color(0xFF64748B);
   static const Color _textLight = Color(0xFFCBD5E1);
   static const Color _border    = Color(0xFFE2E8F0);
+
+  AppStrings get _s => SageX3App.of(context)?.strings ?? AppStrings('fr');
 
   @override
   void initState() {
@@ -54,7 +57,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ── Login email/password ──────────────────────────────────────────────────
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
@@ -99,6 +101,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildDesktopLayout() {
+    final s = _s;
     return LayoutBuilder(builder: (context, constraints) {
       final h     = constraints.maxHeight;
       final vPad  = (h * 0.05).clamp(16.0, 44.0);
@@ -110,22 +113,19 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           Container(decoration: BoxDecoration(gradient: LinearGradient(
               begin: Alignment.centerRight, end: Alignment.centerLeft,
               colors: [_bgPanel, _bgPanel.withOpacity(0.0)], stops: const [0.0, 0.28]))),
-          Positioned(left: 44, bottom: 44, child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Positioned(left: 44, bottom: 44, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _dot(),
             const SizedBox(height: 12),
-            const Text('Bon\nretour.', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w700,
+            Text(s.loginHero, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700,
                 color: _textDark, height: 1.15, letterSpacing: -0.5)),
             const SizedBox(height: 10),
-            Text('Connectez-vous pour accéder à votre espace.',
-                style: TextStyle(fontSize: 14, color: _textMid)),
+            Text(s.loginSubtitle, style: const TextStyle(fontSize: 14, color: _textMid)),
           ])),
         ])),
         Expanded(flex: 45, child: Container(color: _bgPanel,
             child: Center(child: SlideTransition(position: _slideAnim,
                 child: FadeTransition(opacity: _fadeAnim,
-                    child: SizedBox(width: 400,
-                        child: _buildCard(hPad: 40, vPad: vPad, gap: gap, gapSm: gapSm))))))),
+                    child: SizedBox(width: 400, child: _buildCard(hPad: 40, vPad: vPad, gap: gap, gapSm: gapSm))))))),
       ]);
     });
   }
@@ -159,8 +159,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         color: Colors.white, borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _border),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10),
-              blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
+          BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10), blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
@@ -169,21 +168,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildForm({double gap = 24, double gapSm = 18}) {
+    final s = _s;
     return Form(key: _formKey, child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      // Logo
+        crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
         _dot(size: 8), const SizedBox(width: 8),
-        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-            color: _textDark, letterSpacing: 3)),
+        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: 3)),
       ]),
       SizedBox(height: gap),
 
-      const Text('Connexion', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700,
-          color: _textDark, letterSpacing: -0.5, height: 1.1)),
+      Text(s.login, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: -0.5, height: 1.1)),
       const SizedBox(height: 4),
-      Text('Entrez vos identifiants pour continuer.',
-          style: TextStyle(fontSize: 13, color: _textMid)),
+      Text(s.loginFormSubtitle, style: const TextStyle(fontSize: 13, color: _textMid)),
       SizedBox(height: gap),
 
       if (_errorMessage != null) ...[
@@ -191,8 +187,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         SizedBox(height: gapSm),
       ],
 
-      // Email
-      _label('Adresse e-mail'), const SizedBox(height: 7),
+      _label(s.email), const SizedBox(height: 7),
       TextFormField(
         controller: emailController, focusNode: _emailFocus,
         keyboardType: TextInputType.emailAddress,
@@ -200,12 +195,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_passFocus),
         style: const TextStyle(color: _textDark, fontSize: 14),
         decoration: _inputDeco('vous@entreprise.com', Icons.alternate_email_rounded),
-        validator: (v) => (v == null || v.isEmpty) ? 'Veuillez entrer votre e-mail' : null,
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return s.emailRequired;
+          final emailRegex = RegExp(r'^[\w\-.]+@[\w\-]+\.[a-zA-Z]{2,}$');
+          if (!emailRegex.hasMatch(v.trim())) return s.emailInvalid;
+          return null;
+        },
       ),
       SizedBox(height: gapSm),
 
-      // Password
-      _label('Mot de passe'), const SizedBox(height: 7),
+      _label(s.password), const SizedBox(height: 7),
       TextFormField(
         controller: passController, focusNode: _passFocus,
         obscureText: !_isPasswordVisible,
@@ -214,14 +213,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         style: const TextStyle(color: _textDark, fontSize: 14),
         decoration: _inputDeco('••••••••', Icons.lock_outline_rounded,
             suffix: IconButton(
-                icon: Icon(_isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: _textLight, size: 18),
+                icon: Icon(_isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _textLight, size: 18),
                 onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
-        validator: (v) => (v == null || v.isEmpty) ? 'Veuillez entrer votre mot de passe' : null,
+        validator: (v) => (v == null || v.isEmpty) ? s.passwordRequired : null,
       ),
       SizedBox(height: gapSm),
 
-      // Remember + Forgot
       Row(children: [
         GestureDetector(onTap: () => setState(() => _rememberMe = !_rememberMe),
             child: Row(children: [
@@ -231,17 +228,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       border: Border.all(color: _rememberMe ? _accent : _textLight, width: 1.5)),
                   child: _rememberMe ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null),
               const SizedBox(width: 8),
-              Text('Se souvenir de moi', style: TextStyle(color: _textMid, fontSize: 12)),
+              Text(s.rememberMe, style: const TextStyle(color: _textMid, fontSize: 12)),
             ])),
         const Spacer(),
-        GestureDetector(onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => ForgotPasswordPage())),
-            child: const Text('Mot de passe oublié ?',
-                style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w500))),
+        GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPasswordPage())),
+            child: Text(s.forgotPassword, style: const TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w500))),
       ]),
       SizedBox(height: gap),
 
-      // Submit
       SizedBox(width: double.infinity, height: 48,
           child: ElevatedButton(
             onPressed: _isLoading ? null : _login,
@@ -250,25 +245,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 foregroundColor: Colors.white, elevation: 0, shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: _isLoading
-                ? const SizedBox(width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                : const Text('Se connecter', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+                : Text(s.loginBtn, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
           )),
       SizedBox(height: gapSm),
 
-      // Register link
       Center(child: RichText(text: TextSpan(
-          style: TextStyle(color: _textMid, fontSize: 12), children: [
-        const TextSpan(text: "Pas encore de compte ?  "),
+          style: const TextStyle(color: _textMid, fontSize: 12), children: [
+        TextSpan(text: s.noAccount),
         WidgetSpan(child: GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RegisterPage())),
-            child: const Text('Créer un compte',
-                style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)))),
+            child: Text(s.createAccount, style: const TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)))),
       ]))),
     ]));
   }
-
-  // ── Shared widgets ────────────────────────────────────────────────────────
 
   Widget _errorBanner(String msg) {
     return Container(width: double.infinity,

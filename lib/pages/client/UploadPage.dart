@@ -27,7 +27,7 @@ class _UploadPageState extends State<UploadPage> {
   List<Map<String, dynamic>> _history = [];
   bool _historyLoading = false;
 
-  // Design tokens
+  // Tokens de design
   static const _blue   = Color(0xFF2563eb);
   static const _violet = Color(0xFF7c3aed);
   static const _green  = Color(0xFF059669);
@@ -102,34 +102,34 @@ class _UploadPageState extends State<UploadPage> {
         Expanded(child: SingleChildScrollView(
           padding: EdgeInsets.all(desk ? 32 : 20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ── Upload area ─────────────────────────────────────────────
+            // ── Zone de dépôt ────────────────────────────────────────────
             _dropZone(dk, card, bord, txt, sub),
 
-            // ── File selected ───────────────────────────────────────────
+            // ── Fichier sélectionné ──────────────────────────────────────
             if (_file != null && _success == null) ...[
               SizedBox(height: 20),
               _filePreview(dk, card, bord, txt, sub),
             ],
 
-            // ── Uploading ───────────────────────────────────────────────
+            // ── Envoi en cours ───────────────────────────────────────────
             if (_uploading) ...[
               SizedBox(height: 20),
               _progressCard(dk, card, bord, txt, sub),
             ],
 
-            // ── Success ─────────────────────────────────────────────────
+            // ── Succès ───────────────────────────────────────────────────
             if (_success == true) ...[
               SizedBox(height: 20),
               _successCard(dk, card, bord, txt, sub),
             ],
 
-            // ── Errors ──────────────────────────────────────────────────
+            // ── Erreurs ──────────────────────────────────────────────────
             if (_success == false && _errors.isNotEmpty) ...[
               SizedBox(height: 20),
               _errorCard(dk, card, bord, txt, sub),
             ],
 
-            // ── History ─────────────────────────────────────────────────
+            // ── Historique ───────────────────────────────────────────────
             SizedBox(height: 36),
             _historySection(dk, card, bord, txt, sub),
           ]),
@@ -138,7 +138,7 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────
+  // ── En-tête ───────────────────────────────────────────────────────────
   Widget _header(BuildContext ctx, bool desk, bool dk, Color card, Color bord, Color txt, Color sub) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: desk ? 32 : 20, vertical: 16),
@@ -146,15 +146,15 @@ class _UploadPageState extends State<UploadPage> {
       child: Row(children: [
         _backBtn(ctx, dk, sub), SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Upload File', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: txt, letterSpacing: -0.3)),
-          Text('Import your Excel data for validation and CSV conversion',
+          Text('Importer un fichier', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: txt, letterSpacing: -0.3)),
+          Text('Importez vos données Excel pour validation et conversion CSV',
               style: TextStyle(fontSize: 12, color: sub)),
         ])),
       ]),
     );
   }
 
-  // ── Drop zone ─────────────────────────────────────────────────────────
+  // ── Zone de dépôt ─────────────────────────────────────────────────────
   Widget _dropZone(bool dk, Color card, Color bord, Color txt, Color sub) {
     final hasSel = _file != null;
     return GestureDetector(
@@ -180,10 +180,10 @@ class _UploadPageState extends State<UploadPage> {
             child: Icon(Icons.cloud_upload_outlined, size: 40, color: _blue),
           ),
           SizedBox(height: 20),
-          Text(hasSel ? 'Tap to change file' : 'Select an Excel file',
+          Text(hasSel ? 'Appuyer pour changer le fichier' : 'Sélectionner un fichier Excel',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
           SizedBox(height: 6),
-          Text('Only .xlsx files are accepted',
+          Text('Seuls les fichiers .xlsx sont acceptés',
               style: TextStyle(fontSize: 13, color: sub)),
           if (!hasSel) ...[
             SizedBox(height: 20),
@@ -196,7 +196,7 @@ class _UploadPageState extends State<UploadPage> {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.folder_open_rounded, color: Colors.white, size: 16),
                 SizedBox(width: 8),
-                Text('Browse Files', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                Text('Parcourir les fichiers', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
               ]),
             ),
           ],
@@ -205,7 +205,7 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  // ── File preview ──────────────────────────────────────────────────────
+  // ── Aperçu du fichier ─────────────────────────────────────────────────
   Widget _filePreview(bool dk, Color card, Color bord, Color txt, Color sub) {
     return Container(
       padding: EdgeInsets.all(18),
@@ -222,7 +222,7 @@ class _UploadPageState extends State<UploadPage> {
             Text(_fileName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: txt),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 3),
-            Text('${_fileMb.toStringAsFixed(2)} MB', style: TextStyle(fontSize: 12, color: sub)),
+            Text('${_fileMb.toStringAsFixed(2)} Mo', style: TextStyle(fontSize: 12, color: sub)),
           ])),
           Container(
             width: 34, height: 34,
@@ -248,7 +248,7 @@ class _UploadPageState extends State<UploadPage> {
                 child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.upload_rounded, color: Colors.white, size: 18),
                   SizedBox(width: 8),
-                  Text('Upload & Validate', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text('Importer & Valider', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                 ])),
               ),
             ),
@@ -270,7 +270,7 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  // ── Progress ──────────────────────────────────────────────────────────
+  // ── Progression ───────────────────────────────────────────────────────
   Widget _progressCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     return Container(
       padding: EdgeInsets.all(20),
@@ -281,9 +281,9 @@ class _UploadPageState extends State<UploadPage> {
               child: CircularProgressIndicator(strokeWidth: 2.5, color: _blue)),
           SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Uploading & validating...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: txt)),
+            Text('Envoi et validation en cours...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: txt)),
             SizedBox(height: 2),
-            Text('${(_progress * 100).toInt()}% complete', style: TextStyle(fontSize: 12, color: sub)),
+            Text('${(_progress * 100).toInt()}% terminé', style: TextStyle(fontSize: 12, color: sub)),
           ])),
         ]),
         SizedBox(height: 14),
@@ -294,7 +294,7 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  // ── Success ───────────────────────────────────────────────────────────
+  // ── Succès ────────────────────────────────────────────────────────────
   Widget _successCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     final hasCsv = _csv != null && _csv!.isNotEmpty;
     return Container(
@@ -311,15 +311,15 @@ class _UploadPageState extends State<UploadPage> {
               child: Icon(Icons.check_circle_rounded, color: _green, size: 24)),
           SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Import Successful', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _green)),
+            Text('Importation réussie', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _green)),
             SizedBox(height: 2),
-            Text('$_modelCode  •  $_rowCount rows converted', style: TextStyle(fontSize: 13, color: sub)),
+            Text('$_modelCode  •  $_rowCount lignes converties', style: TextStyle(fontSize: 13, color: sub)),
           ])),
         ]),
 
         if (hasCsv) ...[
           SizedBox(height: 18),
-          // CSV preview
+          // Aperçu CSV
           Container(
             width: double.infinity, padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -334,7 +334,7 @@ class _UploadPageState extends State<UploadPage> {
             )),
           ),
           SizedBox(height: 18),
-          // Download button
+          // Bouton de téléchargement
           Container(
             width: double.infinity, height: 50,
             decoration: BoxDecoration(
@@ -346,7 +346,7 @@ class _UploadPageState extends State<UploadPage> {
               child: InkWell(onTap: _downloadCsv, borderRadius: BorderRadius.circular(12),
                 child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.download_rounded, color: Colors.white, size: 18), SizedBox(width: 8),
-                  Text('Download CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text('Télécharger le CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                 ])))),
           ),
         ],
@@ -356,7 +356,7 @@ class _UploadPageState extends State<UploadPage> {
           child: OutlinedButton.icon(
             onPressed: _reset,
             icon: Icon(Icons.upload_rounded, size: 16),
-            label: Text('Upload Another File'),
+            label: Text('Importer un autre fichier'),
             style: OutlinedButton.styleFrom(
               foregroundColor: _green,
               side: BorderSide(color: _green.withOpacity(0.4)),
@@ -368,7 +368,7 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  // ── Errors ────────────────────────────────────────────────────────────
+  // ── Erreurs ───────────────────────────────────────────────────────────
   Widget _errorCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     final global = _errors.where((e) => (e['row'] ?? 0) == 0).toList();
     final byRow  = <int, List<Map<String, dynamic>>>{};
@@ -390,14 +390,14 @@ class _UploadPageState extends State<UploadPage> {
               child: Icon(Icons.error_outline_rounded, color: _red, size: 24)),
           SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${_errors.length} error${_errors.length > 1 ? 's' : ''} detected',
+            Text('${_errors.length} erreur${_errors.length > 1 ? 's' : ''} détectée${_errors.length > 1 ? 's' : ''}',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _red)),
             SizedBox(height: 2),
-            Text('Fix the errors in your Excel file and try again', style: TextStyle(fontSize: 12, color: sub)),
+            Text('Corrigez les erreurs dans votre fichier Excel et réessayez', style: TextStyle(fontSize: 12, color: sub)),
           ])),
         ]),
 
-        // Global errors
+        // Erreurs globales
         if (global.isNotEmpty) ...[
           SizedBox(height: 16),
           ...global.map((e) => Padding(
@@ -410,10 +410,10 @@ class _UploadPageState extends State<UploadPage> {
           )),
         ],
 
-        // Row errors
+        // Erreurs par ligne
         if (byRow.isNotEmpty) ...[
           SizedBox(height: 16),
-          Text('By row:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txt)),
+          Text('Par ligne :', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txt)),
           SizedBox(height: 10),
           ...byRow.entries.take(8).map((entry) => Container(
             margin: EdgeInsets.only(bottom: 8),
@@ -433,9 +433,9 @@ class _UploadPageState extends State<UploadPage> {
                 child: Row(children: [
                   Icon(Icons.table_rows_outlined, size: 13, color: _red),
                   SizedBox(width: 6),
-                  Text('Row ${entry.key}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _red)),
+                  Text('Ligne ${entry.key}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _red)),
                   SizedBox(width: 6),
-                  Text('${entry.value.length} error${entry.value.length > 1 ? 's' : ''}',
+                  Text('${entry.value.length} erreur${entry.value.length > 1 ? 's' : ''}',
                       style: TextStyle(fontSize: 10, color: _red.withOpacity(0.6))),
                 ]),
               ),
@@ -461,7 +461,7 @@ class _UploadPageState extends State<UploadPage> {
             decoration: BoxDecoration(color: _amber.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
             child: Row(children: [
               Icon(Icons.info_outline, color: _amber, size: 14), SizedBox(width: 8),
-              Expanded(child: Text('... and ${byRow.length - 8} more rows with errors',
+              Expanded(child: Text('... et ${byRow.length - 8} autres lignes avec des erreurs',
                   style: TextStyle(fontSize: 12, color: _amber))),
             ]),
           ),
@@ -475,21 +475,21 @@ class _UploadPageState extends State<UploadPage> {
             child: InkWell(onTap: _reset, borderRadius: BorderRadius.circular(12),
               child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.refresh_rounded, color: Colors.white, size: 16), SizedBox(width: 8),
-                Text('Fix & Retry', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                Text('Corriger & Réessayer', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
               ])))),
         ),
       ]),
     );
   }
 
-  // ── History section ───────────────────────────────────────────────────
+  // ── Section historique ────────────────────────────────────────────────
   Widget _historySection(bool dk, Color card, Color bord, Color txt, Color sub) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Text('Recent Uploads', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
+        Text('Importations récentes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: txt)),
         Spacer(),
         TextButton.icon(onPressed: _loadHistory,
-            icon: Icon(Icons.refresh, size: 14), label: Text('Refresh', style: TextStyle(fontSize: 12)),
+            icon: Icon(Icons.refresh, size: 14), label: Text('Actualiser', style: TextStyle(fontSize: 12)),
             style: TextButton.styleFrom(foregroundColor: _blue)),
       ]),
       SizedBox(height: 14),
@@ -503,7 +503,7 @@ class _UploadPageState extends State<UploadPage> {
           child: Column(children: [
             Icon(Icons.inbox_outlined, size: 36, color: sub.withOpacity(0.3)),
             SizedBox(height: 10),
-            Text('No uploads yet', style: TextStyle(fontSize: 13, color: sub)),
+            Text('Aucune importation pour le moment', style: TextStyle(fontSize: 13, color: sub)),
           ]),
         )
       else
@@ -520,9 +520,9 @@ class _UploadPageState extends State<UploadPage> {
     try {
       final dt = DateTime.parse(h['uploadDate'] ?? '').toLocal();
       final df = DateTime.now().difference(dt);
-      if (df.inHours < 1) time = '${df.inMinutes}m ago';
-      else if (df.inHours < 24) time = '${df.inHours}h ago';
-      else time = '${df.inDays}d ago';
+      if (df.inHours < 1) time = 'Il y a ${df.inMinutes}min';
+      else if (df.inHours < 24) time = 'Il y a ${df.inHours}h';
+      else time = 'Il y a ${df.inDays}j';
     } catch (_) {}
 
     return Container(
@@ -546,7 +546,7 @@ class _UploadPageState extends State<UploadPage> {
             ],
             if (ok && h['rowCount'] != null) ...[
               Text('  •  ', style: TextStyle(color: sub.withOpacity(0.3))),
-              Text('${h['rowCount']} rows', style: TextStyle(fontSize: 11, color: sub)),
+              Text('${h['rowCount']} lignes', style: TextStyle(fontSize: 11, color: sub)),
             ],
           ]),
         ])),
@@ -571,13 +571,13 @@ class _UploadPageState extends State<UploadPage> {
         Container(
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-          child: Text(ok ? 'Done' : 'Error', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          child: Text(ok ? 'Converti' : 'Erreur', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
         ),
       ]),
     );
   }
 
-  // ── Shared ────────────────────────────────────────────────────────────
+  // ── Partagé ───────────────────────────────────────────────────────────
   Widget _backBtn(BuildContext ctx, bool dk, Color sub) {
     return Container(width: 38, height: 38,
         decoration: BoxDecoration(color: dk ? Color(0xFF1a1d24) : Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),

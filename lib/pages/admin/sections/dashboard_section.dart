@@ -68,18 +68,7 @@ class DashboardSection extends StatelessWidget {
             );
           }),
           const Spacer(),
-          ElevatedButton.icon(
-            onPressed: onAddUser,
-            icon: const Icon(Icons.person_add_outlined, size: 14),
-            label: const Text('Ajouter un utilisateur', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AdminColors.violet,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-          ),
+          
         ]),
         const SizedBox(height: 24),
 

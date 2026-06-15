@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:frontend_sage3/services/api_service.dart';
+import 'package:frontend_sage3/main.dart';
+import 'package:frontend_sage3/app_strings.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   @override
   _ForgotPasswordPageState createState() => _ForgotPasswordPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage>
-    with SingleTickerProviderStateMixin {
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final _formKey  = GlobalKey<FormState>();
   final ApiService _api = ApiService();
@@ -26,6 +27,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   static const Color _textMid   = Color(0xFF64748B);
   static const Color _textLight = Color(0xFFCBD5E1);
   static const Color _border    = Color(0xFFE2E8F0);
+
+  AppStrings get _s => SageX3App.of(context)?.strings ?? AppStrings('fr');
 
   @override
   void initState() {
@@ -68,6 +71,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildDesktop() {
+    final s = _s;
     return LayoutBuilder(builder: (context, constraints) {
       final h    = constraints.maxHeight;
       final vPad = (h * 0.06).clamp(20.0, 56.0);
@@ -77,14 +81,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
           Container(decoration: BoxDecoration(gradient: LinearGradient(
               begin: Alignment.centerRight, end: Alignment.centerLeft,
               colors: [_bgPanel, _bgPanel.withOpacity(0.0)], stops: const [0.0, 0.28]))),
-          Positioned(left: 44, bottom: 44, child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Positioned(left: 44, bottom: 44, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _dot(),
             const SizedBox(height: 12),
-            const Text('Mot de passe\noublié ?', style: TextStyle(fontSize: 40,
+            Text(s.forgotHero, style: const TextStyle(fontSize: 40,
                 fontWeight: FontWeight.w700, color: _textDark, height: 1.15, letterSpacing: -0.5)),
             const SizedBox(height: 10),
-            Text('Pas de panique, on s\'en occupe.', style: TextStyle(fontSize: 14, color: _textMid)),
+            Text(s.forgotHeroSub, style: const TextStyle(fontSize: 14, color: _textMid)),
           ])),
         ])),
         Expanded(flex: 45, child: Container(color: _bgPanel,
@@ -117,8 +120,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _border),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10),
-                blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
+            BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10), blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
             BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
           ]),
       child: _emailSent ? _buildSuccess() : _buildForm(),
@@ -126,26 +128,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildForm() {
+    final s = _s;
     return Form(key: _formKey, child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      // Logo
+        crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
       Row(children: [_dot(size: 8), const SizedBox(width: 8),
-        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-            color: _textDark, letterSpacing: 3))]),
+        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: 3))]),
       const SizedBox(height: 28),
 
-      const Text('Réinitialiser', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700,
-          color: _textDark, letterSpacing: -0.5)),
+      Text(s.resetTitle, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: -0.5)),
       const SizedBox(height: 6),
-      Text('Entrez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.',
-          style: TextStyle(fontSize: 13, color: _textMid, height: 1.5)),
+      Text(s.resetSubtitle, style: const TextStyle(fontSize: 13, color: _textMid, height: 1.5)),
       const SizedBox(height: 28),
 
       if (_errorMessage != null) ...[
         _errorBanner(_errorMessage!), const SizedBox(height: 16),
       ],
 
-      _label('Adresse e-mail'), const SizedBox(height: 7),
+      _label(s.email), const SizedBox(height: 7),
       TextFormField(
         controller: _emailController,
         keyboardType: TextInputType.emailAddress,
@@ -154,26 +153,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         style: const TextStyle(color: _textDark, fontSize: 14),
         decoration: _inputDeco('vous@entreprise.com', Icons.alternate_email_rounded),
         validator: (v) {
-          if (v == null || v.isEmpty) return 'Veuillez entrer votre e-mail';
-          if (!v.contains('@')) return 'E-mail invalide';
+          if (v == null || v.isEmpty) return s.emailRequired;
+          if (!v.contains('@')) return s.emailInvalid;
           return null;
         },
       ),
       const SizedBox(height: 24),
 
       SizedBox(width: double.infinity, height: 48,
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: _accent,
-              disabledBackgroundColor: _accent.withOpacity(0.4),
-              foregroundColor: Colors.white, elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          child: _isLoading
-              ? const SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Colors.white)))
-              : const Text('Envoyer le lien', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        )),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(backgroundColor: _accent,
+                disabledBackgroundColor: _accent.withOpacity(0.4),
+                foregroundColor: Colors.white, elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: _isLoading
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+                : Text(s.sendLink, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          )),
       const SizedBox(height: 18),
 
       Center(child: GestureDetector(
@@ -181,50 +178,48 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.arrow_back_rounded, size: 16, color: _accent),
           const SizedBox(width: 6),
-          const Text('Retour à la connexion',
-              style: TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w500)),
+          Text(s.backToLogin, style: const TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w500)),
         ]),
       )),
     ]));
   }
 
   Widget _buildSuccess() {
-    return Column(mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center, children: [
+    final s = _s;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
       const SizedBox(height: 8),
       Container(width: 64, height: 64,
-        decoration: BoxDecoration(color: const Color(0xFFd1fae5), shape: BoxShape.circle),
-        child: const Icon(Icons.mark_email_read_outlined, color: Color(0xFF10b981), size: 32)),
+          decoration: const BoxDecoration(color: Color(0xFFd1fae5), shape: BoxShape.circle),
+          child: const Icon(Icons.mark_email_read_outlined, color: Color(0xFF10b981), size: 32)),
       const SizedBox(height: 20),
-      const Text('Email envoyé !', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700,
-          color: _textDark, letterSpacing: -0.3)),
+      Text(s.emailSent, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: -0.3)),
       const SizedBox(height: 10),
-      Text('Si l\'adresse e-mail\n${_emailController.text.trim()}\nexiste dans notre système, '
-          'vous recevrez un lien de réinitialisation valable 1 heure.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13, color: _textMid, height: 1.6)),
+      Text(
+        s.emailSentDesc(_emailController.text.trim()),
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 13, color: _textMid, height: 1.6),
+      ),
       const SizedBox(height: 28),
       SizedBox(width: double.infinity, height: 48,
-        child: ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(backgroundColor: _accent,
-              foregroundColor: Colors.white, elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          child: const Text('Retour à la connexion',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        )),
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(backgroundColor: _accent,
+                foregroundColor: Colors.white, elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: Text(s.backToLogin, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          )),
     ]);
   }
 
   Widget _errorBanner(String msg) => Container(width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(color: const Color(0xFFfef2f2),
-        borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFfecaca))),
-    child: Row(children: [
-      const Icon(Icons.error_outline, color: Color(0xFFef4444), size: 16),
-      const SizedBox(width: 10),
-      Expanded(child: Text(msg, style: const TextStyle(color: Color(0xFFdc2626), fontSize: 12))),
-    ]));
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(color: const Color(0xFFfef2f2),
+          borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFfecaca))),
+      child: Row(children: [
+        const Icon(Icons.error_outline, color: Color(0xFFef4444), size: 16),
+        const SizedBox(width: 10),
+        Expanded(child: Text(msg, style: const TextStyle(color: Color(0xFFdc2626), fontSize: 12))),
+      ]));
 
   Widget _dot({double size = 6}) => Container(width: size, height: size,
       decoration: const BoxDecoration(color: _accent, shape: BoxShape.circle));

@@ -35,7 +35,7 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
-  // ── Data accessors ────────────────────────────────────────────────────
+  // ── Accesseurs de données ─────────────────────────────────────────────
   Map<String, dynamic> get _overview   => (_data['overview'] ?? {}) as Map<String, dynamic>;
   Map<String, dynamic> get _trends     => (_overview['trends'] ?? {}) as Map<String, dynamic>;
   List<dynamic>        get _daily      => (_data['dailyChart'] ?? []) as List;
@@ -70,7 +70,7 @@ class _ReportsPageState extends State<ReportsPage> {
     ]);
   }
 
-  // ── Header with period selector ───────────────────────────────────────
+  // ── Barre d'en-tête avec sélecteur de période ─────────────────────────
   Widget _headerBar(bool dk, Color card, Color bord, Color txt, Color sub, bool desk) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: desk ? 32 : 20, vertical: 14),
@@ -78,7 +78,7 @@ class _ReportsPageState extends State<ReportsPage> {
       child: Row(children: [
         ...['7d', '30d', '90d'].map((p) {
           final sel = _period == p;
-          final label = p == '7d' ? '7 Days' : p == '30d' ? '30 Days' : '90 Days';
+          final label = p == '7d' ? '7 Jours' : p == '30d' ? '30 Jours' : '90 Jours';
           return Padding(padding: EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () { setState(() => _period = p); _load(); },
@@ -105,18 +105,16 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  // ── Main content ──────────────────────────────────────────────────────
+  // ── Contenu principal ─────────────────────────────────────────────────
   Widget _buildContent(bool desk, bool dk, Color card, Color bord, Color txt, Color sub) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── KPI with trends ───────────────────────────────────────────────
+      // ── KPI avec tendances ────────────────────────────────────────────
       _kpiSection(desk, dk, card, bord, txt, sub),
       SizedBox(height: 24),
 
-      // ── Insights bar ──────────────────────────────────────────────────
-      _insightsBar(dk, card, bord, txt, sub),
-      SizedBox(height: 24),
+     
 
-      // ── Charts row ────────────────────────────────────────────────────
+      // ── Rangée de graphiques ──────────────────────────────────────────
       desk
           ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(flex: 3, child: _dailyChart(dk, card, bord, txt, sub)),
@@ -130,7 +128,7 @@ class _ReportsPageState extends State<ReportsPage> {
             ]),
       SizedBox(height: 24),
 
-      // ── Models + Errors row ───────────────────────────────────────────
+      // ── Rangée modèles + erreurs ──────────────────────────────────────
       desk
           ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: _modelsCard(dk, card, bord, txt, sub)),
@@ -144,13 +142,13 @@ class _ReportsPageState extends State<ReportsPage> {
             ]),
       SizedBox(height: 24),
 
-      // ── Hourly heatmap ────────────────────────────────────────────────
+      // ── Carte de chaleur horaire ──────────────────────────────────────
       _hourlyHeatmap(dk, card, bord, txt, sub),
     ]);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  KPI CARDS WITH TREND BADGES
+  //  CARTES KPI AVEC BADGES DE TENDANCE
   // ═══════════════════════════════════════════════════════════════════════
   Widget _kpiSection(bool desk, bool dk, Color card, Color bord, Color txt, Color sub) {
     final total   = _overview['totalImports']  ?? 0;
@@ -165,10 +163,10 @@ class _ReportsPageState extends State<ReportsPage> {
     final tRate    = (_trends['rateTrend']    ?? 0).toDouble();
 
     final kpis = [
-      _KpiItem('Total Imports', '$total', Icons.layers_outlined, _blue, tTotal, true),
-      _KpiItem('Successful', '$success', Icons.check_circle_outlined, _green, tSuccess, true),
-      _KpiItem('Failed', '$failed', Icons.highlight_off_outlined, _red, tFailed, false),
-      _KpiItem('Success Rate', '$rate%', Icons.speed_outlined, _amber, tRate, true),
+      _KpiItem('Total Importations', '$total', Icons.layers_outlined, _blue, tTotal, true),
+      _KpiItem('Réussies', '$success', Icons.check_circle_outlined, _green, tSuccess, true),
+      _KpiItem('Échouées', '$failed', Icons.highlight_off_outlined, _red, tFailed, false),
+      _KpiItem('Taux de Réussite', '$rate%', Icons.speed_outlined, _amber, tRate, true),
     ];
 
     if (desk) {
@@ -206,7 +204,7 @@ class _ReportsPageState extends State<ReportsPage> {
           Container(padding: EdgeInsets.all(8),
               decoration: BoxDecoration(color: k.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(k.icon, color: k.color, size: 18)),
-          // Trend badge
+          // Badge de tendance
           Container(
             padding: EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(color: trendColor.withOpacity(dk ? 0.15 : 0.08), borderRadius: BorderRadius.circular(6)),
@@ -226,7 +224,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  INSIGHTS BAR
+  //  BARRE D'INSIGHTS
   // ═══════════════════════════════════════════════════════════════════════
   Widget _insightsBar(bool dk, Color card, Color bord, Color txt, Color sub) {
     final total   = _overview['totalImports'] ?? 0;
@@ -235,30 +233,30 @@ class _ReportsPageState extends State<ReportsPage> {
     final peak    = _peak['label'] ?? '—';
     final rows    = _overview['totalRows'] ?? 0;
 
-    // Generate smart insights
+    // Génération d'insights intelligents
     final insights = <_Insight>[];
 
     if (tRate > 0) {
-      insights.add(_Insight(Icons.trending_up, 'Your success rate improved by ${tRate.abs()}% this period', _green));
+      insights.add(_Insight(Icons.trending_up, 'Votre taux de réussite a augmenté de ${tRate.abs()}% cette période', _green));
     } else if (tRate < 0) {
-      insights.add(_Insight(Icons.trending_down, 'Success rate dropped by ${tRate.abs()}% — check your data formatting', _amber));
+      insights.add(_Insight(Icons.trending_down, 'Le taux de réussite a baissé de ${tRate.abs()}% — vérifiez le format de vos données', _amber));
     }
 
     if (total > 0) {
-      insights.add(_Insight(Icons.schedule, 'Peak activity at $peak — you\'re most productive then', _blue));
+      insights.add(_Insight(Icons.schedule, 'Pic d\'activité à $peak — c\'est votre heure la plus productive', _blue));
     }
 
     if (rows > 100) {
-      insights.add(_Insight(Icons.table_rows, '$rows rows converted this period', _violet));
+      insights.add(_Insight(Icons.table_rows, '$rows lignes converties cette période', _violet));
     }
 
     if (_errors.isNotEmpty) {
-      final topErr = (_errors[0] as Map)['error'] ?? 'Unknown';
-      insights.add(_Insight(Icons.lightbulb_outlined, 'Most common error: "$topErr" — check those fields', _amber));
+      final topErr = (_errors[0] as Map)['error'] ?? 'Inconnu';
+      insights.add(_Insight(Icons.lightbulb_outlined, 'Erreur la plus fréquente : "$topErr" — vérifiez ces champs', _amber));
     }
 
     if (insights.isEmpty) {
-      insights.add(_Insight(Icons.info_outline, 'Start importing to see personalized insights', sub));
+      insights.add(_Insight(Icons.info_outline, 'Commencez à importer pour voir des insights personnalisés', sub));
     }
 
     return Container(
@@ -288,14 +286,14 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  DAILY CHART (Line-style with bars)
+  //  GRAPHIQUE JOURNALIER (barres avec ligne)
   // ═══════════════════════════════════════════════════════════════════════
   Widget _dailyChart(bool dk, Color card, Color bord, Color txt, Color sub) {
     final data   = _daily.cast<Map<String, dynamic>>();
     final maxVal = data.map((d) => (d['total'] ?? 0) as int).fold(0, max).clamp(1, 9999);
     final total  = data.fold(0, (s, d) => s + ((d['total'] ?? 0) as int));
 
-    // Show every Nth label to avoid crowding
+    // Afficher chaque Nième étiquette pour éviter l'encombrement
     final showEvery = data.length > 14 ? 5 : data.length > 7 ? 2 : 1;
 
     return Container(
@@ -304,18 +302,18 @@ class _ReportsPageState extends State<ReportsPage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Import Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+            Text('Activité d\'Importation', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
             SizedBox(height: 2),
-            Text('Daily imports over selected period', style: TextStyle(fontSize: 12, color: sub)),
+            Text('Importations journalières sur la période sélectionnée', style: TextStyle(fontSize: 12, color: sub)),
           ])),
           Container(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(color: _blue.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
-              child: Text('Total: $total', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _blue))),
+              child: Text('Total : $total', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _blue))),
         ]),
         SizedBox(height: 8),
         Row(children: [
-          _dot(_blue, 'Success'), SizedBox(width: 14),
-          _dot(_red, 'Failed'),
+          _dot(_blue, 'Réussies'), SizedBox(width: 14),
+          _dot(_red, 'Échouées'),
         ]),
         SizedBox(height: 20),
         SizedBox(
@@ -362,7 +360,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  WEEKLY SUCCESS RATES
+  //  TAUX DE RÉUSSITE HEBDOMADAIRES
   // ═══════════════════════════════════════════════════════════════════════
   Widget _weeklyRatesCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     final weeks = _weekly.cast<Map<String, dynamic>>();
@@ -370,13 +368,13 @@ class _ReportsPageState extends State<ReportsPage> {
       padding: EdgeInsets.all(22),
       decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(14), border: Border.all(color: bord)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Weekly Success Rate', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+        Text('Taux de Réussite Hebdomadaire', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
         SizedBox(height: 2),
-        Text('Rate evolution per week', style: TextStyle(fontSize: 12, color: sub)),
+        Text('Évolution du taux par semaine', style: TextStyle(fontSize: 12, color: sub)),
         SizedBox(height: 20),
         if (weeks.isEmpty)
           Center(child: Padding(padding: EdgeInsets.all(20),
-              child: Text('No data', style: TextStyle(fontSize: 12, color: sub))))
+              child: Text('Aucune donnée', style: TextStyle(fontSize: 12, color: sub))))
         else
           ...weeks.asMap().entries.map((e) {
             final w    = e.value;
@@ -409,7 +407,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  TOP MODELS
+  //  TOP MODÈLES
   // ═══════════════════════════════════════════════════════════════════════
   Widget _modelsCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     final models = _models.cast<Map<String, dynamic>>();
@@ -420,12 +418,12 @@ class _ReportsPageState extends State<ReportsPage> {
       padding: EdgeInsets.all(22),
       decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(14), border: Border.all(color: bord)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Top Models', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+        Text('Top Modèles', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
         SizedBox(height: 2),
-        Text('Most used import models', style: TextStyle(fontSize: 12, color: sub)),
+        Text('Modèles d\'importation les plus utilisés', style: TextStyle(fontSize: 12, color: sub)),
         SizedBox(height: 20),
         if (models.isEmpty)
-          Center(child: Padding(padding: EdgeInsets.all(16), child: Text('No data', style: TextStyle(fontSize: 12, color: sub))))
+          Center(child: Padding(padding: EdgeInsets.all(16), child: Text('Aucune donnée', style: TextStyle(fontSize: 12, color: sub))))
         else
           ...models.asMap().entries.map((e) {
             final i = e.key; final m = e.value;
@@ -443,7 +441,7 @@ class _ReportsPageState extends State<ReportsPage> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text(code, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txt)),
-                  Text('$cnt imports • ${rate}%', style: TextStyle(fontSize: 10, color: sub)),
+                  Text('$cnt imports · $rate%', style: TextStyle(fontSize: 10, color: sub)),
                 ]),
                 SizedBox(height: 6),
                 ClipRRect(borderRadius: BorderRadius.circular(3),
@@ -457,7 +455,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  TOP ERRORS — Horizontal bar chart
+  //  ERREURS FRÉQUENTES — Graphique à barres horizontales
   // ═══════════════════════════════════════════════════════════════════════
   Widget _errorsCard(bool dk, Color card, Color bord, Color txt, Color sub) {
     final errors = _errors.cast<Map<String, dynamic>>();
@@ -468,7 +466,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(14), border: Border.all(color: bord)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('Common Errors', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+          Text('Erreurs Fréquentes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
           Spacer(),
           if (errors.isNotEmpty) Container(
             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -477,7 +475,7 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
         ]),
         SizedBox(height: 2),
-        Text('Most frequent validation errors', style: TextStyle(fontSize: 12, color: sub)),
+        Text('Erreurs de validation les plus fréquentes', style: TextStyle(fontSize: 12, color: sub)),
         SizedBox(height: 20),
         if (errors.isEmpty)
           Container(
@@ -485,7 +483,7 @@ class _ReportsPageState extends State<ReportsPage> {
             child: Center(child: Column(children: [
               Icon(Icons.check_circle_outline, size: 32, color: _green.withOpacity(0.4)),
               SizedBox(height: 8),
-              Text('No errors — great job!', style: TextStyle(fontSize: 12, color: _green)),
+              Text('Aucune erreur — excellent travail !', style: TextStyle(fontSize: 12, color: _green)),
             ])),
           )
         else
@@ -516,7 +514,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  HOURLY HEATMAP
+  //  CARTE DE CHALEUR HORAIRE
   // ═══════════════════════════════════════════════════════════════════════
   Widget _hourlyHeatmap(bool dk, Color card, Color bord, Color txt, Color sub) {
     final hours = _hourly.cast<Map<String, dynamic>>();
@@ -529,9 +527,9 @@ class _ReportsPageState extends State<ReportsPage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Activity by Hour', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+            Text('Activité par Heure', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
             SizedBox(height: 2),
-            Text('When you import the most', style: TextStyle(fontSize: 12, color: sub)),
+            Text('Vos heures d\'importation les plus actives', style: TextStyle(fontSize: 12, color: sub)),
           ])),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -539,7 +537,7 @@ class _ReportsPageState extends State<ReportsPage> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.access_time, size: 12, color: _violet),
               SizedBox(width: 4),
-              Text('Peak: $peakLabel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _violet)),
+              Text('Pic : $peakLabel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _violet)),
             ]),
           ),
         ]),
@@ -553,7 +551,7 @@ class _ReportsPageState extends State<ReportsPage> {
             final isPeak = hour == (_peak['hour'] ?? -1);
 
             return Expanded(child: Tooltip(
-              message: '${h['label']}: $count imports',
+              message: '${h['label']} : $count importations',
               child: Container(
                 margin: EdgeInsets.symmetric(horizontal: 1),
                 decoration: BoxDecoration(
@@ -580,7 +578,7 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  // ── Shared helpers ────────────────────────────────────────────────────
+  // ── Helpers partagés ──────────────────────────────────────────────────
   Widget _dot(Color c, String l) => Row(children: [
     Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
     SizedBox(width: 4), Text(l, style: TextStyle(fontSize: 11, color: Color(0xFF64748b)))]);
@@ -588,17 +586,17 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _loadingState() => Center(child: Padding(padding: EdgeInsets.all(64),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         CircularProgressIndicator(strokeWidth: 2.5, color: _blue), SizedBox(height: 16),
-        Text('Loading analytics...', style: TextStyle(fontSize: 13, color: Color(0xFF9ca3af)))])));
+        Text('Chargement des analyses...', style: TextStyle(fontSize: 13, color: Color(0xFF9ca3af)))])));
 
   Widget _errorState(Color txt, Color sub, Color card, Color bord) => Container(
     padding: EdgeInsets.all(48),
     decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(14), border: Border.all(color: bord)),
     child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(Icons.cloud_off_outlined, size: 44, color: _red.withOpacity(0.4)), SizedBox(height: 14),
-      Text('Failed to load analytics', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
+      Text('Impossible de charger les analyses', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: txt)),
       SizedBox(height: 6), Text(_error ?? '', style: TextStyle(fontSize: 12, color: sub), textAlign: TextAlign.center),
       SizedBox(height: 18), TextButton.icon(onPressed: _load, icon: Icon(Icons.refresh, size: 16),
-          label: Text('Try again'), style: TextButton.styleFrom(foregroundColor: _blue))])));
+          label: Text('Réessayer'), style: TextButton.styleFrom(foregroundColor: _blue))])));
 }
 
 class _KpiItem {

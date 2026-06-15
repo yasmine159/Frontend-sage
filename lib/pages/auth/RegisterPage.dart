@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:frontend_sage3/pages/auth/LoginPage.dart';
 import 'package:frontend_sage3/services/api_service.dart';
 import 'package:frontend_sage3/services/auth_service.dart';
+import 'package:frontend_sage3/main.dart';
+import 'package:frontend_sage3/app_strings.dart';
 
 class RegisterPage extends StatefulWidget {
   @override
@@ -36,6 +38,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   static const Color _textLight = Color(0xFFCBD5E1);
   static const Color _border    = Color(0xFFE2E8F0);
 
+  AppStrings get _s => SageX3App.of(context)?.strings ?? AppStrings('fr');
+
   @override
   void initState() {
     super.initState();
@@ -56,10 +60,11 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   }
 
   Future<void> _handleRegister() async {
+    final s = _s;
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Veuillez accepter les conditions d\'utilisation'),
+          content: Text(s.acceptTermsRequired),
           backgroundColor: const Color(0xFFef4444), behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
       return;
@@ -79,7 +84,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       ));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Compte créé avec succès !'),
+          content: Text(s.accountCreated),
           backgroundColor: const Color(0xFF10b981), behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
       Navigator.pushReplacementNamed(context, '/home');
@@ -100,9 +105,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     );
   }
 
-  // ── Layouts ──────────────────────────────────────────────────────────────
-
   Widget _buildDesktopLayout() {
+    final s = _s;
     return LayoutBuilder(builder: (context, constraints) {
       final h     = constraints.maxHeight;
       final vPad  = (h * 0.045).clamp(14.0, 40.0);
@@ -114,21 +118,19 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           Container(decoration: BoxDecoration(gradient: LinearGradient(
               begin: Alignment.centerRight, end: Alignment.centerLeft,
               colors: [_bgPanel, _bgPanel.withOpacity(0.0)], stops: const [0.0, 0.28]))),
-          Positioned(left: 44, bottom: 44, child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Positioned(left: 44, bottom: 44, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _dot(),
             const SizedBox(height: 12),
-            const Text('Commencez\nici.', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w700,
+            Text(s.registerHero, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700,
                 color: _textDark, height: 1.15, letterSpacing: -0.5)),
             const SizedBox(height: 10),
-            Text('Créez votre compte en quelques secondes.', style: TextStyle(fontSize: 14, color: _textMid)),
+            Text(s.registerSubtitle, style: const TextStyle(fontSize: 14, color: _textMid)),
           ])),
         ])),
         Expanded(flex: 45, child: Container(color: _bgPanel,
             child: Center(child: SlideTransition(position: _slideAnim,
                 child: FadeTransition(opacity: _fadeAnim,
-                    child: SizedBox(width: 520,
-                        child: _buildCard(hPad: 40, vPad: vPad, gap: gap, gapSm: gapSm))))))),
+                    child: SizedBox(width: 520, child: _buildCard(hPad: 40, vPad: vPad, gap: gap, gapSm: gapSm))))))),
       ]);
     });
   }
@@ -158,8 +160,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _border),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10),
-                blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
+            BoxShadow(color: const Color(0xFF0891b2).withOpacity(0.10), blurRadius: 48, spreadRadius: -6, offset: const Offset(0, 20)),
             BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
           ]),
       child: _buildForm(gap: gap, gapSm: gapSm),
@@ -167,91 +168,80 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   }
 
   Widget _buildForm({double gap = 20, double gapSm = 12}) {
+    final s = _s;
     return Form(key: _formKey, child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      // Logo
+        crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
         _dot(size: 8), const SizedBox(width: 8),
-        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-            color: _textDark, letterSpacing: 3)),
+        const Text('SAGE X3', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: 3)),
       ]),
       SizedBox(height: gap),
 
-      const Text('Créer un compte', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700,
-          color: _textDark, letterSpacing: -0.5, height: 1.1)),
+      Text(s.createAccountTitle, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: _textDark, letterSpacing: -0.5, height: 1.1)),
       const SizedBox(height: 4),
-      Text('Remplissez les informations ci-dessous pour commencer.', style: TextStyle(fontSize: 13, color: _textMid)),
+      Text(s.registerFormSubtitle, style: const TextStyle(fontSize: 13, color: _textMid)),
       SizedBox(height: gap),
 
-      // Error
       if (_errorMessage != null) ...[
         _errorBanner(_errorMessage!), SizedBox(height: gapSm),
       ],
 
-      // Row 1 — Nom + Email
       _twoFields(
-        left: _fieldCol('Nom complet', fullNameController, 'Prénom Nom', Icons.person_outline_rounded,
+        left: _fieldCol(s.fullName, fullNameController, 'Prénom Nom', Icons.person_outline_rounded,
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Requis';
-              if (v.length < 3) return 'Min. 3 caractères';
+              if (v == null || v.isEmpty) return s.required;
+              if (v.length < 3) return s.min3chars;
               return null;
             }),
-        right: _fieldCol('Adresse e-mail', emailController, 'vous@entreprise.com',
-            Icons.alternate_email_rounded,
+        right: _fieldCol(s.email, emailController, 'vous@entreprise.com', Icons.alternate_email_rounded,
             keyboardType: TextInputType.emailAddress,
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Requis';
-              if (!v.contains('@')) return 'E-mail invalide';
+              if (v == null || v.isEmpty) return s.required;
+              if (!v.contains('@')) return s.emailInvalid;
               return null;
             }),
       ),
       SizedBox(height: gapSm),
 
-      // Row 2 — Téléphone + Société
       _twoFields(
-        left: _fieldCol('Téléphone', phoneController, '+216 XX XXX XXX', Icons.phone_outlined,
-            keyboardType: TextInputType.phone),
-        right: _fieldCol('Société', companyController, 'Votre entreprise', Icons.business_outlined),
+        left:  _fieldCol(s.phone,   phoneController,   '+216 XX XXX XXX', Icons.phone_outlined,   keyboardType: TextInputType.phone),
+        right: _fieldCol(s.company, companyController, s.yourCompany,     Icons.business_outlined),
       ),
       SizedBox(height: gapSm),
 
-      // Row 3 — Mot de passe + Confirmer
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _label('Mot de passe'), const SizedBox(height: 6),
+          _label(s.password), const SizedBox(height: 6),
           TextFormField(controller: passController, obscureText: !_isPasswordVisible,
               style: const TextStyle(color: _textDark, fontSize: 14),
               decoration: _inputDeco('••••••••', Icons.lock_outline_rounded,
                   suffix: IconButton(
-                      icon: Icon(_isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: _textLight, size: 18),
+                      icon: Icon(_isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _textLight, size: 18),
                       onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Requis';
-                if (v.length < 6) return 'Min. 6 caractères';
+                if (v == null || v.isEmpty) return s.required;
+                if (v.length < 6) return s.min6chars;
                 return null;
               }),
         ])),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _label('Confirmer'), const SizedBox(height: 6),
+          _label(s.confirmPasswordLabel), const SizedBox(height: 6),
           TextFormField(controller: confirmPassController, obscureText: !_isConfirmPasswordVisible,
               style: const TextStyle(color: _textDark, fontSize: 14),
               decoration: _inputDeco('••••••••', Icons.lock_outline_rounded,
                   suffix: IconButton(
-                      icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: _textLight, size: 18),
+                      icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _textLight, size: 18),
                       onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible))),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Requis';
-                if (v != passController.text) return 'Non identiques';
+                if (v == null || v.isEmpty) return s.required;
+                if (v != passController.text) return s.notIdentical;
                 return null;
               }),
         ])),
       ]),
       SizedBox(height: gapSm),
 
-      // Terms
       GestureDetector(
           onTap: () => setState(() => _acceptTerms = !_acceptTerms),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -261,16 +251,14 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                     border: Border.all(color: _acceptTerms ? _accent : _textLight, width: 1.5)),
                 child: _acceptTerms ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null),
             const SizedBox(width: 10),
-            Expanded(child: RichText(text: const TextSpan(
-                style: TextStyle(fontSize: 12, color: _textMid), children: [
-              TextSpan(text: "J'accepte les "),
-              TextSpan(text: "conditions d'utilisation",
-                  style: TextStyle(color: _accent, fontWeight: FontWeight.w600)),
+            Expanded(child: RichText(text: TextSpan(
+                style: const TextStyle(fontSize: 12, color: _textMid), children: [
+              TextSpan(text: s.iAccept),
+              TextSpan(text: s.termsOfUse, style: const TextStyle(color: _accent, fontWeight: FontWeight.w600)),
             ]))),
           ])),
       SizedBox(height: gap),
 
-      // Submit
       SizedBox(width: double.infinity, height: 48,
           child: ElevatedButton(
             onPressed: _isLoading ? null : _handleRegister,
@@ -279,32 +267,24 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 foregroundColor: Colors.white, elevation: 0, shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: _isLoading
-                ? const SizedBox(width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                : const Text('Créer le compte', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+                : Text(s.createAccountBtn, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
           )),
       SizedBox(height: gapSm),
 
-      // Login link
       Center(child: RichText(text: TextSpan(
-          style: TextStyle(color: _textMid, fontSize: 12), children: [
-        const TextSpan(text: "Vous avez déjà un compte ?  "),
+          style: const TextStyle(color: _textMid, fontSize: 12), children: [
+        TextSpan(text: s.alreadyAccount),
         WidgetSpan(child: GestureDetector(
             onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginPage())),
-            child: const Text('Se connecter',
-                style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)))),
+            child: Text(s.signIn, style: const TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)))),
       ]))),
-    ],
-    ));
+    ]));
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   Widget _twoFields({required Widget left, required Widget right}) {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: left),
-      const SizedBox(width: 12),
-      Expanded(child: right),
+      Expanded(child: left), const SizedBox(width: 12), Expanded(child: right),
     ]);
   }
 
@@ -312,13 +292,9 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       {TextInputType? keyboardType, String? Function(String?)? validator}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _label(label), const SizedBox(height: 6),
-      TextFormField(
-        controller: ctrl,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: _textDark, fontSize: 14),
-        decoration: _inputDeco(hint, icon),
-        validator: validator,
-      ),
+      TextFormField(controller: ctrl, keyboardType: keyboardType,
+          style: const TextStyle(color: _textDark, fontSize: 14),
+          decoration: _inputDeco(hint, icon), validator: validator),
     ]);
   }
 

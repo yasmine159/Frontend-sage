@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend_sage3/services/api_service.dart';
 import 'package:frontend_sage3/services/auth_service.dart';
 import 'dart:math';
+import 'package:frontend_sage3/main.dart';
 
 import 'sections/dashboard_section.dart';
 import 'sections/users_section.dart';
@@ -767,7 +768,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final email = user['email'] ?? '';
     final uC = TextEditingController(text: uname);
     final eC = TextEditingController(text: email);
-    String role = user['role'] ?? 'Utilisateur';
+    String role = (user['role'] == 'Admin') ? 'Admin' : 'Utilisateur';
     bool loading = false;
     String? err;
 
@@ -796,7 +797,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           onPressed: loading ? null : () async {
             setD(() => loading = true);
             try {
-              await ApiService().updateUser(user['id'] as int, uC.text.trim(), eC.text.trim(), role);
+              final roleToSend = (role == 'Admin') ? 'Admin' : 'User';
+              await ApiService().updateUser(user['id'] as int, uC.text.trim(), eC.text.trim(), roleToSend);
               Navigator.pop(ctx);
               _loadUsers();
               _snack('Utilisateur mis à jour !', _green);
@@ -882,6 +884,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ElevatedButton(
           onPressed: () {
             AuthService.instance.logout();
+            SageX3App.of(context)?.toggleTheme(false);
             Navigator.pop(context);
             Navigator.pushReplacementNamed(context, '/login');
           },
